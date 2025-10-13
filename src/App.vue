@@ -1,9 +1,9 @@
 <script setup>
-import LoginRegister from './components/LoginRegister.vue';
+import { RouterView } from 'vue-router';
 </script>
 
 <template>
-  <LoginRegister />
+  <RouterView />
 </template>
 
 <style scoped>
