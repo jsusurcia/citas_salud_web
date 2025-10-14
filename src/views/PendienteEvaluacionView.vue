@@ -1,11 +1,4 @@
 <script setup>
-// Importaciones para FontAwesome
-import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome'
-import { library } from '@fortawesome/fontawesome-svg-core'
-import { faClock } from '@fortawesome/free-regular-svg-icons'
-library.add(faClock)
-
-// Importar componente loader
 import LoaderComponent from '../components/LoaderComponent.vue'
 </script>
 
@@ -58,4 +51,5 @@ import LoaderComponent from '../components/LoaderComponent.vue'
 </template>
 
 <style scoped>
+
 </style>
