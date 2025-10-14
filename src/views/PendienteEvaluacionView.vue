@@ -1,9 +1,12 @@
 <script setup>
-// Si usas FontAwesome con npm, descomenta estas líneas:
+// Importaciones para FontAwesome
 import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome'
 import { library } from '@fortawesome/fontawesome-svg-core'
 import { faClock } from '@fortawesome/free-regular-svg-icons'
 library.add(faClock)
+
+// Importar componente loader
+import LoaderComponent from '../components/LoaderComponent.vue'
 </script>
 
 <template>
@@ -32,18 +35,7 @@ library.add(faClock)
       </div>
 
       <!-- Ícono en movimiento -->
-      <div class="loading mb-6 flex justify-center">
-        <svg width="64px" height="48px">
-          <polyline 
-            points="0.157 23.954, 14 23.954, 21.843 48, 43 0, 50 24, 64 24" 
-            id="back"
-          />
-          <polyline 
-            points="0.157 23.954, 14 23.954, 21.843 48, 43 0, 50 24, 64 24" 
-            id="front"
-          />
-        </svg>
-      </div>
+      <LoaderComponent />
 
       <!-- Tiempo de espera -->
       <div class="bg-white rounded-lg shadow-md p-4 text-center">
@@ -66,34 +58,4 @@ library.add(faClock)
 </template>
 
 <style scoped>
-/* Animación del loader */
-.loading svg polyline {
-  fill: none;
-  stroke-width: 3;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.loading svg polyline#back {
-  fill: none;
-  stroke: #0A6B61;
-}
-
-.loading svg polyline#front {
-  fill: none;
-  stroke: #5CCFC0;
-  stroke-dasharray: 48, 144;
-  stroke-dashoffset: 192;
-  animation: dash_682 1.4s linear infinite;
-}
-
-@keyframes dash_682 {
-  72.5% {
-    opacity: 0;
-  }
-
-  to {
-    stroke-dashoffset: 0;
-  }
-}
 </style>
