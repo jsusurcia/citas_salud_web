@@ -17,6 +17,7 @@
     "flowbite": "^3.1.2",
     "tailwindcss": "^4.1.14",
     "vue": "^3.5.22",
+    "vue-cal": "^5.0.1-rc.33",
     "vue-router": "^4.5.1"
   },
   "devDependencies": {
