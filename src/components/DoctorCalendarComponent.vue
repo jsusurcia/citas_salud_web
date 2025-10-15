@@ -1,17 +1,22 @@
 <template>
     <div class="calendario-container">
-        <vue-cal :time-from="8 * 60" :time-to="19 * 60" :time-step="30" active-view="week"
-            :disable-views="['years', 'month']" :events="eventosDisponibilidad"
+        <vue-cal
+            :time-from="7 * 60"
+            :time-to="22 * 60"
+            :time-step="30" active-view="week"
+            :disable-views="['years', 'month']"
+            :events="eventosDisponibilidad"
             :editable-events="{ title: false, drag: true, resize: true, create: true, delete: true }"
-            @event-create="crearBloqueDisponibilidad" style="height: 600px;">
+            @event-create="crearBloqueDisponibilidad" style="height: 600px;"
+            :locale="'es'" >
         </vue-cal>
     </div>
 </template>
 
 <script setup>
 import { ref } from 'vue';
-import { VueCal } from 'vue-cal'
-import 'vue-cal/style'
+import { VueCal } from 'vue-cal';
+import 'vue-cal/style';
 
 // Array para almacenar los bloques de disponibilidad del doctor
 const eventosDisponibilidad = ref([
@@ -66,4 +71,33 @@ const formatDate = (dateObj) => {
     border: 1px solid rgb(21, 115, 71);
     color: #fff;
 }
+
+/* Cambiar fondo y texto del encabezado */
+.vuecal {
+    --vuecal-primary-color: #4785a1; /* Azul más suave */
+}
+/* Cambiar el color de los botones (← → Hoy, etc.) */
+.vuecal__arrow,
+.vuecal__title-bar {
+  color: white;
+}
+
+/* Si quieres personalizar el hover de los botones */
+.vuecal__arrow:hover {
+  color: #c93533; /* Rojo corporativo */
+}
+
+/* Quitar el borde inferior azul predeterminado */
+.vuecal__header .vuecal__title-bar {
+  border-bottom: none;
+}
+
+/* Cambiar color de los nombres de los días */
+.vuecal__weekdays {
+  background-color: #4785a1; /* Azul más suave */
+  color: #fff;
+}
+
+
+
 </style>
