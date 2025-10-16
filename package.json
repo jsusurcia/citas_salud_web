@@ -14,9 +14,13 @@
     "@fortawesome/free-solid-svg-icons": "^7.1.0",
     "@fortawesome/vue-fontawesome": "^3.1.2",
     "@tailwindcss/vite": "^4.1.14",
+    "axios": "^1.12.2",
     "flowbite": "^3.1.2",
+    "pinia": "^3.0.3",
     "tailwindcss": "^4.1.14",
     "vue": "^3.5.22",
+    "vue-advanced-chat": "^2.1.0",
+    "vue-cal": "^5.0.1-rc.33",
     "vue-router": "^4.5.1"
   },
   "devDependencies": {
