@@ -9,41 +9,41 @@ import DoctorsAppointmentView from "../views/DoctorsAppointmentView.vue";
 import ChatView from "../views/ChatView.vue";
 
 // Implementar en la autenticación cuando se implemente
-const routes = [
-    { path: '/auth', component: AuthView },
-    {
-        path: '/',
-        component: PendienteEvaluacionView,
-        children: [
-            { path: 'validacion_personal', component: ValidacionPersonalView },
-            { path: 'pendiente', component: PendienteEvaluacionView },
-            { path: 'disponibilidad_medico', component: DoctorsAvailabilityView },
-            { path: 'citas_medico', component: DoctorsAppointmentView },
-            { path: 'chat_medico', component: ChatView },
-        ],
-        meta: { requiresAuth: true }
-    },
-]
+// const routes = [
+//     { path: '/auth', component: AuthView },
+//     {
+//         path: '/',
+//         component: PendienteEvaluacionView,
+//         children: [
+//             { path: 'validacion_personal', component: ValidacionPersonalView },
+//             { path: 'pendiente', component: PendienteEvaluacionView },
+//             { path: 'disponibilidad_medico', component: DoctorsAvailabilityView },
+//             { path: 'citas_medico', component: DoctorsAppointmentView },
+//             { path: 'chat_medico', component: ChatView },
+//         ],
+//         meta: { requiresAuth: true }
+//     },
+// ]
 
-const router = createRouter({
-    history: createWebHistory(),
-    routes,
-});
+// const router = createRouter({
+//     history: createWebHistory(),
+//     routes,
+// });
 
-router.beforeEach((to, from, next) => {
-    const authStore = useAuthStore()
-    if (to.meta.requiresAuth && !authStore.isAuthenticated) {
-        next('/auth')
-    } else {
-        next()
-    }
-})
+// router.beforeEach((to, from, next) => {
+//     const authStore = useAuthStore()
+//     if (to.meta.requiresAuth && !authStore.isAuthenticated) {
+//         next('/auth')
+//     } else {
+//         next()
+//     }
+// })
 
-export default router
+// export default router
 
 
 
-/*
+
 const router = createRouter({
     history: createWebHistory(),
     routes: [
@@ -58,7 +58,7 @@ const router = createRouter({
             component: PendienteEvaluacionView
         },
         {
-            path: "/validacion_personal",
+            path: "/admin/validacion",
             "name": "validacion_personal",
             component: ValidacionPersonalView
         },
@@ -81,4 +81,3 @@ const router = createRouter({
 });
 
 export default router;
-*/
