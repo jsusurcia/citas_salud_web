@@ -1,4 +1,11 @@
 <script setup>
+//Importaciones para FontAwesome
+import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome'
+import { library } from '@fortawesome/fontawesome-svg-core'
+import { faTriangleExclamation, faCircleCheck, faCircleExclamation, faCircleInfo, faXmark } from '@fortawesome/free-solid-svg-icons';
+
+import ButtonComponent from '../components/ButtonComponent.vue';
+
 import { computed } from 'vue';
 
 const props = defineProps({
@@ -8,7 +15,7 @@ const props = defineProps({
   },
   type: {
     type: String,
-    default: 'danger', // danger, success, warning, info
+    default: 'danger',
     validator: (value) => ['danger', 'success', 'warning', 'info'].includes(value)
   },
   icon: {
