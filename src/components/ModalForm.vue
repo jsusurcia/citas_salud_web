@@ -1,6 +1,9 @@
 <script setup>
+// Importar Componentes
 import { ref } from 'vue'
+import ButtonComponent from './ButtonComponent.vue'
 
+// Props
 const props = defineProps({
   title: {
     type: String,
@@ -12,56 +15,46 @@ const props = defineProps({
   }
 })
 
+// Component Events
 const emit = defineEmits(['close', 'submit'])
-
-const closeModal = () => emit('close')
-const handleSubmit = () => emit('submit')
+const closeModal = (event) => {
+  emit('close', event);
+};
+const submitModal = (event) => {
+  emit('submit', event);
+};
 </script>
 
 <template>
   <!-- Fondo oscuro y modal centrado -->
   <transition name="fade">
-    <div
-      v-if="isOpen"
-      class="fixed inset-0 z-[1000] flex items-center justify-center bg-black/40 backdrop-blur-sm"
-    >
+    <div v-if="isOpen" class="fixed inset-0 z-[1000] flex items-center justify-center bg-black/40 backdrop-blur-sm">
       <!-- Contenedor del modal -->
       <transition name="scale">
-        <div
-          class="relative w-full max-w-md bg-white rounded-2xl shadow-lg p-6 animate-fade-in-up"
-        >
+        <div class="relative w-full max-w-md bg-white rounded-2xl shadow-lg p-2 animate-fade-in-up">
           <!-- Header -->
-          <div class="flex items-center justify-between mb-4">
-            <h3 class="text-xl font-semibold text-gray-800">
+          <div class="flex items-center justify-between p-5 pb-0">
+            <h3 class="text-lg font-bold text-gray-700">
               {{ title }}
             </h3>
-            <button
-              @click="closeModal"
-              class="text-gray-400 hover:text-gray-600 transition"
-            >
+            <button @click="closeModal" class="text-gray-400 hover:text-gray-600 transition">
               <i class="fa-solid fa-xmark text-lg"></i>
             </button>
           </div>
 
           <!-- Body (slot para contenido) -->
-          <form @submit.prevent="handleSubmit" class="space-y-4">
-            <slot></slot>
+          <form @submit.prevent="submitModal" class="p-4 md:p-5">
+            <!-- Cuerpo Formulario -->
+            <div class="grid gap-4 mb-4">
+              <slot>
+                <!-- Aquí van los inputs pertenecientes al formulario -->
+              </slot>
+            </div>
 
             <!-- Footer -->
-            <div class="flex justify-end gap-2 pt-2">
-              <button
-                type="button"
-                @click="closeModal"
-                class="px-5 py-2.5 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition"
-              >
-                Cancelar
-              </button>
-              <button
-                type="submit"
-                class="px-5 py-2.5 text-sm font-medium text-white bg-[#10A697] hover:bg-[#0e8e85] rounded-lg transition"
-              >
-                Guardar
-              </button>
+            <div class="flex justify-end gap-2">
+              <ButtonComponent type="button" variant="secondary" size="large" label="Cancelar" @click="closeModal" />
+              <ButtonComponent type="submit" variant="primary" size="large" label="Guardar" />
             </div>
           </form>
         </div>
@@ -76,6 +69,7 @@ const handleSubmit = () => emit('submit')
 .fade-leave-active {
   transition: opacity 0.2s ease;
 }
+
 .fade-enter-from,
 .fade-leave-to {
   opacity: 0;
@@ -85,6 +79,7 @@ const handleSubmit = () => emit('submit')
 .scale-leave-active {
   transition: all 0.25s ease;
 }
+
 .scale-enter-from,
 .scale-leave-to {
   transform: scale(0.95);
