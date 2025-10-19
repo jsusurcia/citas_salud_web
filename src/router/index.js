@@ -7,6 +7,7 @@ import ValidacionPersonalView from "../views/ValidacionPersonalView.vue"
 import DoctorsAvailabilityView from "../views/DoctorsAvailabilityView.vue";
 import DoctorsAppointmentView from "../views/DoctorsAppointmentView.vue";
 import ChatView from "../views/ChatView.vue";
+import EspecialidadesView from "../views/EspecialidadesView.vue";
 
 // Implementar en la autenticación cuando se implemente
 // const routes = [
@@ -77,6 +78,11 @@ const router = createRouter({
             "name": "chat_medico",
             component: ChatView
         },
+        {
+            path: "/admin/especialidades",
+            "name" : "especialidades",
+            component : EspecialidadesView
+        }
     ]
 });
 
