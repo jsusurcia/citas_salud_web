@@ -15,12 +15,14 @@
     "@fortawesome/vue-fontawesome": "^3.1.2",
     "@tailwindcss/vite": "^4.1.14",
     "axios": "^1.12.2",
+    "chart.js": "^4.5.1",
     "flowbite": "^3.1.2",
     "pinia": "^3.0.3",
     "tailwindcss": "^4.1.14",
     "vue": "^3.5.22",
     "vue-advanced-chat": "^2.1.0",
     "vue-cal": "^5.0.1-rc.33",
+    "vue-chartjs": "^5.3.2",
     "vue-router": "^4.5.1"
   },
   "devDependencies": {

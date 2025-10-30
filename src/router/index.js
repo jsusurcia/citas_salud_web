@@ -8,6 +8,7 @@ import DoctorsAvailabilityView from "../views/DoctorsAvailabilityView.vue";
 import DoctorsAppointmentView from "../views/DoctorsAppointmentView.vue";
 import ChatView from "../views/ChatView.vue";
 
+import ReportesView from "../views/ReportesView.vue";
 // Implementar en la autenticación cuando se implemente
 // const routes = [
 //     { path: '/auth', component: AuthView },
@@ -48,6 +49,10 @@ const router = createRouter({
     history: createWebHistory(),
     routes: [
         {
+            path: "/",
+            redirect: "auth",
+        },
+        {
             path: "/auth",
             name: "auth",
             component: AuthView
@@ -76,6 +81,11 @@ const router = createRouter({
             path: "/chat_medico",
             "name": "chat_medico",
             component: ChatView
+        },
+        {
+            path: "/admin/reportes",
+            name: "admin-reportes",
+            component: ReportesView
         },
     ]
 });
