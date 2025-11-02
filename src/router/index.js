@@ -7,6 +7,8 @@ import ValidacionPersonalView from "../views/ValidacionPersonalView.vue"
 import DoctorsAvailabilityView from "../views/DoctorsAvailabilityView.vue";
 import DoctorsAppointmentView from "../views/DoctorsAppointmentView.vue";
 import ChatView from "../views/ChatView.vue";
+import EspecialidadesView from "../views/EspecialidadesView.vue";
+import ReportesView from "../views/ReportesView.vue";
 
 import ReportesView from "../views/ReportesView.vue";
 // Implementar en la autenticación cuando se implemente
@@ -50,7 +52,20 @@ const router = createRouter({
     routes: [
         {
             path: "/",
-            redirect: "auth",
+            name: "home",
+            redirect: (to) => {
+                // Redirigir según el rol del usuario
+                const authStore = useAuthStore()
+                const user = authStore.user
+                
+                if (user && user.rol === 'personal_medico') {
+                    return '/disponibilidad_medico'
+                } else if (user && user.rol === 'admin') {
+                    return '/admin/validacion'
+                } else {
+                    return '/auth'
+                }
+            }
         },
         {
             path: "/auth",
@@ -83,11 +98,51 @@ const router = createRouter({
             component: ChatView
         },
         {
+            path: "/admin/especialidades",
+            "name" : "especialidades",
+            component : EspecialidadesView
+        },
+        {
             path: "/admin/reportes",
-            name: "admin-reportes",
+            "name": "reportes",
             component: ReportesView
         },
+        {
+            path: "/admin/reportes/generador",
+            "name": "generador_reportes",
+            component: GeneradorReportesView
+        },
     ]
+});
+
+// Protección de rutas
+router.beforeEach((to, from, next) => {
+    const authStore = useAuthStore()
+    
+    // Rutas públicas (no requieren autenticación)
+    const publicRoutes = ['/auth']
+    
+    // Si la ruta es pública, permitir acceso
+    if (publicRoutes.includes(to.path)) {
+        // Si ya está autenticado y va a /auth, redirigir a su dashboard
+        if (authStore.isAuthenticated) {
+            const user = authStore.user
+            if (user && user.rol === 'personal_medico') {
+                return next('/disponibilidad_medico')
+            } else if (user && user.rol === 'admin') {
+                return next('/admin/validacion')
+            }
+        }
+        return next()
+    }
+    
+    // Si no está autenticado, redirigir a login
+    if (!authStore.isAuthenticated) {
+        return next('/auth')
+    }
+    
+    // Permitir acceso
+    next()
 });
 
 export default router;

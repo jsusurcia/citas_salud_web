@@ -1,11 +1,7 @@
 <script setup>
-// Definición de Props
-defineProps({
-    user: {
-        userName: String,
-        userEmail: String
-    }
-})
+import { computed } from 'vue'
+import { useRouter } from 'vue-router'
+import { useAuthStore } from '../stores/authStore'
 
 // Importaciones para FontAwesome
 import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome'
@@ -13,6 +9,31 @@ import { library } from '@fortawesome/fontawesome-svg-core'
 import { faBars, faArrowRightFromBracket } from '@fortawesome/free-solid-svg-icons'
 import { faBell } from '@fortawesome/free-regular-svg-icons'
 library.add(faBars, faArrowRightFromBracket, faBell)
+
+const router = useRouter()
+const authStore = useAuthStore()
+
+// Obtener usuario del store
+const user = computed(() => {
+  if (authStore.user) {
+    return {
+      userName: authStore.user.nombre || authStore.user.nombres || authStore.user.name || 'Usuario',
+      userEmail: authStore.user.correo || authStore.user.email || ''
+    }
+  }
+  return {
+    userName: 'Usuario',
+    userEmail: ''
+  }
+})
+
+// Función para cerrar sesión
+const handleLogout = () => {
+  console.log('🚪 Cerrando sesión...')
+  authStore.logout()
+  router.push('/auth')
+  console.log('✅ Sesión cerrada')
+}
 </script>
 
 <template>
@@ -39,7 +60,11 @@ library.add(faBars, faArrowRightFromBracket, faBell)
                             </button>
                         </div>
                         <div class="rounded-lg hover:bg-gray-100 p-2">
-                            <button type="button" class="text-red-600">
+                            <button 
+                                type="button" 
+                                class="text-red-600"
+                                @click="handleLogout"
+                                title="Cerrar sesión">
                                 <font-awesome-icon :icon="['fas', 'arrow-right-from-bracket']" />
                             </button>
                         </div>
