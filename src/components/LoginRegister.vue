@@ -1,8 +1,16 @@
 <script setup>
 import { ref, reactive } from 'vue'
+import { useRouter } from 'vue-router'
+import { useAuthStore } from '../stores/authStore'
+import { loginApi } from '../api/auth'
+
+const router = useRouter()
+const authStore = useAuthStore()
 
 // Estado para controlar la animación
 const isActive = ref(false)
+const loading = ref(false)
+const errorMessage = ref('')
 
 // Formulario de login
 const loginForm = reactive({
@@ -22,25 +30,67 @@ const registerForm = reactive({
 // Funciones para cambiar entre login y registro
 const showRegister = () => {
   isActive.value = true
+  errorMessage.value = ''
 }
 
 const showLogin = () => {
   isActive.value = false
+  errorMessage.value = ''
 }
 
-// Handlers de formularios
-const handleLogin = () => {
-  console.log('Login:', loginForm)
-  // Aquí puedes agregar tu lógica de autenticación
+// Handler de login - Conectado con el backend
+const handleLogin = async () => {
+  loading.value = true
+  errorMessage.value = ''
+  
+  try {
+    // Llama a la API del backend FastAPI
+    const response = await loginApi(loginForm.correo, loginForm.contrasena)
+    
+    // Guarda el token y usuario en el store
+    // Ajusta estos campos según la estructura de respuesta de tu FastAPI
+    const token = response.access_token || response.token
+    const user = response.user || { email: loginForm.correo }
+    
+    if (token) {
+      authStore.login(token, user)
+      // Redirige a la página principal
+      router.push('/')
+    }
+  } catch (error) {
+    // Manejo de errores
+    if (error.detail) {
+      errorMessage.value = error.detail
+    } else if (error.message) {
+      errorMessage.value = error.message
+    } else {
+      errorMessage.value = 'Error al iniciar sesión. Verifica tus credenciales.'
+    }
+    console.error('Error en login:', error)
+  } finally {
+    loading.value = false
+  }
 }
 
-const handleRegister = () => {
+const handleRegister = async () => {
   if (registerForm.contrasena !== registerForm.contrasenaConfirmar) {
-    alert('Las contraseñas no coinciden')
+    errorMessage.value = 'Las contraseñas no coinciden'
     return
   }
-  console.log('Register:', registerForm)
-  // Aquí puedes agregar tu lógica de registro
+  
+  loading.value = true
+  errorMessage.value = ''
+  
+  try {
+    // Aquí puedes agregar tu lógica de registro
+    // const response = await registerApi(registerForm)
+    console.log('Register:', registerForm)
+    alert('Funcionalidad de registro pendiente de implementar')
+  } catch (error) {
+    errorMessage.value = error.message || 'Error al registrarse'
+  } finally {
+    loading.value = false
+  }
 }
 
 const handleForgotPassword = () => {
@@ -84,8 +134,14 @@ const handleForgotPassword = () => {
             <a href="#" @click.prevent="handleForgotPassword">Olvidé mi contraseña</a>
           </div>
           
-          <button type="submit" class="btn">
-            Iniciar Sesión
+          <!-- Mensaje de error -->
+          <div v-if="errorMessage" class="error-message">
+            {{ errorMessage }}
+          </div>
+          
+          <button type="submit" class="btn" :disabled="loading">
+            <span v-if="loading">Cargando...</span>
+            <span v-else>Iniciar Sesión</span>
           </button>
         </form>
       </div>
@@ -154,8 +210,14 @@ const handleForgotPassword = () => {
             </select>
           </div>
           
-          <button type="submit" class="btn">
-            Registrarse
+          <!-- Mensaje de error -->
+          <div v-if="errorMessage" class="error-message">
+            {{ errorMessage }}
+          </div>
+          
+          <button type="submit" class="btn" :disabled="loading">
+            <span v-if="loading">Cargando...</span>
+            <span v-else>Registrarse</span>
           </button>
         </form>
       </div>
@@ -324,6 +386,23 @@ form {
   font-size: 16px;
   color: #fff;
   font-weight: 600;
+  transition: opacity 0.3s;
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.error-message {
+  margin: 10px 0;
+  padding: 10px;
+  background: #fee;
+  color: #c33;
+  border-radius: 6px;
+  font-size: 13px;
+  text-align: center;
+  border: 1px solid #fcc;
 }
 
 .toggle-box {
