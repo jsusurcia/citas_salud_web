@@ -12,6 +12,10 @@ const props = defineProps({
   isOpen: {
     type: Boolean,
     default: false
+  },
+  isLoading: {
+    type: Boolean,
+    default: false
   }
 })
 
@@ -53,8 +57,19 @@ const submitModal = (event) => {
 
             <!-- Footer -->
             <div class="flex justify-end gap-2">
-              <ButtonComponent type="button" variant="secondary" size="large" label="Cancelar" @click="closeModal" />
-              <ButtonComponent type="submit" variant="primary" size="large" label="Guardar" />
+              <ButtonComponent 
+                type="button" 
+                variant="secondary" 
+                size="large" 
+                label="Cancelar" 
+                :disabled="isLoading"
+                @click="closeModal" />
+              <ButtonComponent 
+                type="submit" 
+                variant="primary" 
+                size="large" 
+                :label="isLoading ? 'Guardando...' : 'Guardar'"
+                :disabled="isLoading" />
             </div>
           </form>
         </div>

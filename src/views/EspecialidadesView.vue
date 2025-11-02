@@ -1,60 +1,150 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import LayoutComponent from '../components/LayoutComponent.vue'
 import ModalForm from '../components/ModalForm.vue'
 import ConfirmModalComponent from '../components/ConfirmModalComponent.vue'
 import ButtonComponent from '../components/ButtonComponent.vue'
 import EspecialidadCardComponent from '../components/EspecialidadCardComponent.vue'
+import { getEspecialidadesApi, createEspecialidadApi } from '../api/especialidades'
+import LoaderComponent from '../components/LoaderComponent.vue'
+import { useAuthStore } from '../stores/authStore'
+
+const authStore = useAuthStore()
 
 const activeModal = ref(null)
 const selectedEspecialidad = ref(null)
 const form = ref({ nombre: '', descripcion: '' })
-// const selectedEspecialidad = ref(null)
-// const selectedToDisable = ref(null)
-// const actionType = ref('')
+const especialidades = ref([])
+const loading = ref(false)
+const errorMessage = ref('')
+const creating = ref(false)
 
-const especialidades = ref([
-  {
-    id: 1,
-    nombre: 'Medicina General',
-    descripcion: 'Prevención, diagnóstico y tratamiento de enfermedades comunes, atención para todas las edades.',
-    habilitada: true
-  },
-  {
-    id: 2,
-    nombre: 'Pediatría',
-    descripcion: 'Prevención, diagnóstico y tratamiento de enfermedades infantiles, seguimiento del crecimiento y desarrollo.',
-    habilitada: false
-  },
-  {
-    id: 3,
-    nombre: 'Cardiología',
-    descripcion: 'Prevención, diagnóstico y tratamiento de enfermedades cardiovasculares, evaluación del riesgo cardíaco.',
-    habilitada: true
+// Verificar si el usuario es admin
+const isAdmin = computed(() => {
+  return authStore.user?.rol === 'admin'
+})
+
+// Cargar especialidades del backend
+const loadEspecialidades = async () => {
+  loading.value = true
+  errorMessage.value = ''
+  
+  try {
+    console.log('🔄 Cargando especialidades...')
+    const data = await getEspecialidadesApi()
+    
+    // Mapear los datos del backend al formato esperado por el componente
+    especialidades.value = data.map(esp => ({
+      id: esp.id_especialidad || esp.id,
+      nombre: esp.nombre,
+      descripcion: esp.descripcion || '',
+      habilitada: esp.estado !== false // El backend usa 'estado', mapeamos a 'habilitada'
+    }))
+    
+    console.log('✅ Especialidades cargadas:', especialidades.value.length)
+  } catch (error) {
+    console.error('❌ Error al cargar especialidades:', error)
+    
+    // Mostrar mensaje de error
+    if (error.detail) {
+      errorMessage.value = error.detail
+    } else if (error.message) {
+      errorMessage.value = error.message
+    } else {
+      errorMessage.value = 'Error al cargar las especialidades'
+    }
+  } finally {
+    loading.value = false
   }
-]);
+}
+
+// Cargar especialidades cuando el componente se monta
+onMounted(() => {
+  loadEspecialidades()
+})
 
 // Abrir modal de agregar
 const closeModal = () => {
   activeModal.value = null
   selectedEspecialidad.value = null // Limpiamos la selección al cerrar
+  // No limpiamos errorMessage aquí para que se vea si hay un error al crear
 };
 
 const openAddModal = () => {
   form.value = { nombre: '', descripcion: '' } // Reseteamos el formulario
+  errorMessage.value = '' // Limpiar errores previos
   activeModal.value = 'add'
 };
 
 // Crear especialidad
-const handleCreate = () => {
-  if (!form.value.nombre.trim()) return
-  especialidades.value.push({
-    id: especialidades.value.length + 1,
-    nombre: form.value.nombre,
-    descripcion: form.value.descripcion,
-    habilitada: true
-  })
-  closeModal()
+const handleCreate = async () => {
+  if (!form.value.nombre.trim()) {
+    errorMessage.value = 'El nombre es requerido'
+    return
+  }
+  
+  // Verificar que el usuario tenga permisos de admin
+  const user = authStore.user
+  if (!user || user.rol !== 'admin') {
+    errorMessage.value = 'Solo los administradores pueden crear especialidades'
+    return
+  }
+  
+  creating.value = true
+  errorMessage.value = ''
+  
+  try {
+    console.log('➕ Creando especialidad...', form.value)
+    console.log('👤 Usuario actual:', user)
+    
+    // Preparar los datos según el formato esperado por el backend
+    const especialidadData = {
+      nombre: form.value.nombre.trim(),
+      descripcion: form.value.descripcion?.trim() || ''
+    }
+    
+    // Llamar a la API del backend
+    const nuevaEspecialidad = await createEspecialidadApi(especialidadData)
+    
+    console.log('✅ Especialidad creada:', nuevaEspecialidad)
+    
+    // Mapear la respuesta del backend al formato esperado
+    const especialidadMapeada = {
+      id: nuevaEspecialidad.id_especialidad || nuevaEspecialidad.id,
+      nombre: nuevaEspecialidad.nombre,
+      descripcion: nuevaEspecialidad.descripcion || '',
+      habilitada: nuevaEspecialidad.estado !== false
+    }
+    
+    // Cerrar el modal
+    closeModal()
+    
+    // Limpiar mensajes de error
+    errorMessage.value = ''
+    
+    // Recargar todas las especialidades para asegurar consistencia con el backend
+    await loadEspecialidades()
+    
+    console.log('✅ Especialidad creada exitosamente')
+    
+  } catch (error) {
+    console.error('❌ Error al crear especialidad:', error)
+    
+    // Mostrar mensaje de error más específico
+    let errorMsg = 'Error al crear la especialidad'
+    
+    if (error.response?.status === 403) {
+      errorMsg = 'No tienes permisos para crear especialidades. Solo los administradores pueden realizar esta acción.'
+    } else if (error.detail) {
+      errorMsg = error.detail
+    } else if (error.message) {
+      errorMsg = error.message
+    }
+    
+    errorMessage.value = errorMsg
+  } finally {
+    creating.value = false
+  }
 };
 
 // Abrir modal de editar
@@ -101,6 +191,7 @@ const handleToggleStatus = () => {
     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
       <h1 class="text-2xl font-bold text-gray-700">Gestionar especialidades</h1>
       <ButtonComponent 
+        v-if="isAdmin"
         type="button" 
         variant="primary" 
         size="large" 
@@ -109,7 +200,18 @@ const handleToggleStatus = () => {
         @click="openAddModal" />
     </div>
 
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <!-- Mensaje de error -->
+    <div v-if="errorMessage" class="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg">
+      {{ errorMessage }}
+    </div>
+
+    <!-- Loader -->
+    <div v-if="loading" class="flex justify-center items-center py-12">
+      <LoaderComponent />
+    </div>
+
+    <!-- Lista de especialidades -->
+    <div v-else-if="especialidades.length > 0" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       <EspecialidadCardComponent 
         v-for="especialidad in especialidades" 
         :key="especialidad.id"
@@ -122,11 +224,17 @@ const handleToggleStatus = () => {
       />
     </div>
 
+    <!-- Mensaje cuando no hay especialidades -->
+    <div v-else class="text-center py-12 text-gray-500">
+      <p>No hay especialidades disponibles</p>
+    </div>
+
     <ModalForm 
       title="Nueva especialidad" 
       :isOpen="activeModal === 'add'" 
       @close="closeModal"
-      @submit="handleCreate">
+      @submit="handleCreate"
+      :isLoading="creating">
       <div>
         <label for="nombre" class="block mb-2 text-sm font-medium text-gray-900">Nombre</label>
         <input id="nombre" v-model="form.nombre" type="text" placeholder="Ej. Medicina general" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-green-500 focus:border-green-500 block w-full p-2.5" required />

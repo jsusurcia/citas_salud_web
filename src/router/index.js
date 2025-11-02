@@ -8,6 +8,7 @@ import DoctorsAvailabilityView from "../views/DoctorsAvailabilityView.vue";
 import DoctorsAppointmentView from "../views/DoctorsAppointmentView.vue";
 import ChatView from "../views/ChatView.vue";
 import EspecialidadesView from "../views/EspecialidadesView.vue";
+import ReportesView from "../views/ReportesView.vue";
 
 // Implementar en la autenticación cuando se implemente
 // const routes = [
@@ -99,6 +100,11 @@ const router = createRouter({
             path: "/admin/especialidades",
             "name" : "especialidades",
             component : EspecialidadesView
+        },
+        {
+            path: "/admin/reportes",
+            "name": "reportes",
+            component: ReportesView
         }
     ]
 });

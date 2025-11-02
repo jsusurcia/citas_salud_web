@@ -9,26 +9,43 @@ library.add(faClock)
 import NavbarComponent from '../components/NavbarComponent.vue'
 import SidebarComponent from '../components/SidebarComponent.vue'
 import { useMenuItems } from '../composables/useMenuItems'
+import { useAuthStore } from '../stores/authStore'
+import { computed } from 'vue'
 
 // Script para utilizar Flowbite
 import { onMounted } from 'vue'
 import { initFlowbite } from 'flowbite'
 
+const authStore = useAuthStore()
+
+// Usuario del store de autenticación
+const user = computed(() => {
+  if (authStore.user) {
+    return {
+      userName: authStore.user.nombre || authStore.user.nombres || authStore.user.name || 'Usuario',
+      userEmail: authStore.user.correo || authStore.user.email || ''
+    }
+  }
+  return {
+    userName: 'Usuario',
+    userEmail: ''
+  }
+})
+
+// Rol del usuario para el menú
+const userRole = computed(() => {
+  return authStore.user?.rol || 'personal_medico'
+})
+
+const menuItems = computed(() => useMenuItems(userRole.value))
+
 onMounted(() => {
     initFlowbite();
 })
-
-// Usuario de prueba
-const user = {
-    userName: "Jesus Urcia",
-    userEmail: "urciajesus72@gmail.com",
-    userRole: "admin"
-}
-const menuItems = useMenuItems(user.userRole)
 </script>
 
 <template>
-    <NavbarComponent :user="user" />
+    <NavbarComponent />
     <SidebarComponent :menuItems="menuItems" />
     <div class="p-4 sm:ml-64">
         <div class="p-4 border-gray-200 mt-14">

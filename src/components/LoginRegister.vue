@@ -52,31 +52,119 @@ const handleLogin = async () => {
   try {
     console.log('🚀 Iniciando login...', { correo: loginForm.correo })
     
-    // Llama a la API del backend FastAPI
-    // Por defecto intenta login de personal médico solamente
-    const response = await loginApi(loginForm.correo, loginForm.contrasena, 'personal_medico')
+    // Intentar login automáticamente: primero admin, luego personal médico
+    let response = null
+    let user = null
+    let token = null
+    let rol = null
+    
+    // Intento 1: Login como administrador
+    let adminTried = false
+    let medicoTried = false
+    
+    try {
+      console.log('👨‍💼 Intentando login como administrador...')
+      const { loginAdminApi } = await import('../api/auth')
+      response = await loginAdminApi(loginForm.correo, loginForm.contrasena)
+      console.log('✅ Login admin exitoso')
+      rol = 'admin'
+      adminTried = true
+    } catch (adminError) {
+      adminTried = true
+      const status = adminError?.response?.status
+      const statusText = adminError?.response?.statusText
+      
+      console.log(`⚠️ Login admin falló: ${status} ${statusText}`)
+      
+      // Si es 404, el endpoint no existe, no tiene sentido intentar personal médico
+      if (status === 404) {
+        console.log('❌ Endpoint de admin no encontrado (404)')
+      }
+      // Si es 422, los datos están mal formateados pero el endpoint existe
+      else if (status === 422) {
+        console.log('⚠️ Datos de admin incorrectos (422), puede ser problema de formato')
+      }
+      
+      // Intento 2: Login como personal médico
+      try {
+        console.log('🏥 Intentando login como personal médico...')
+        const { loginPersonalMedicoApi } = await import('../api/auth')
+        response = await loginPersonalMedicoApi(loginForm.correo, loginForm.contrasena)
+        console.log('✅ Login personal médico exitoso')
+        rol = 'personal_medico'
+        medicoTried = true
+      } catch (medicoError) {
+        medicoTried = true
+        const medicoStatus = medicoError?.response?.status
+        
+        console.error('❌ Ambos tipos de login fallaron')
+        console.error('📋 Resumen de errores:', {
+          admin: { status: adminError?.response?.status, detail: adminError?.response?.data?.detail },
+          personal_medico: { status: medicoStatus, detail: medicoError?.response?.data?.detail }
+        })
+        
+        // Si ambos devuelven 404, probablemente los endpoints no existen
+        if (status === 404 && medicoStatus === 404) {
+          throw { detail: 'Los endpoints de login no están disponibles. Verifica la configuración del backend.' }
+        }
+        
+        // Si personal médico falla con 404, mostrar mensaje específico
+        if (medicoStatus === 404) {
+          throw { detail: 'Endpoint de personal médico no encontrado. Verifica la ruta /personal_medico/login en el backend.' }
+        }
+        
+        // Si personal médico falla con otro error, usar su mensaje
+        if (medicoError?.detail || medicoError?.response?.data?.detail) {
+          throw medicoError
+        }
+        
+        // Si admin falló con 422 y personal médico con otro error, usar el de personal médico
+        throw medicoError
+      }
+    }
     
     console.log('✅ Respuesta recibida:', response)
     
     // El backend devuelve un ItemResponse con estructura:
     // { status, message, data: { access_token, token_type, personal_medico/user } }
-    let token = null
-    let user = null
     
-    // Verificar estructura de respuesta
-    if (response && response.data) {
-      // Formato ItemResponse: { status, message, data: {...} }
-      console.log('📦 Formato ItemResponse detectado')
-      token = response.data.access_token || response.data.token
-      user = response.data.personal_medico || response.data.user || response.data
-    } else if (response && response.access_token) {
-      // Formato directo (sin ItemResponse)
-      console.log('📦 Formato directo detectado')
-      token = response.access_token || response.token
-      user = response.personal_medico || response.user
+    // Verificar estructura de respuesta según el formato del backend
+    if (rol === 'admin') {
+      // Admin devuelve formato directo: { **admin.dict(), access_token, token_type }
+      if (response && response.data && response.data.access_token) {
+        // Si viene envuelto en ItemResponse
+        console.log('📦 Formato ItemResponse para admin detectado')
+        token = response.data.access_token
+        user = response.data.user || response.data // Los datos del admin están en response.data
+      } else if (response && response.access_token) {
+        // Formato directo (sin ItemResponse) - el backend devuelve directamente
+        console.log('📦 Formato directo para admin detectado')
+        token = response.access_token
+        // El backend devuelve todos los campos del admin más access_token y token_type
+        // Necesitamos extraer los datos del admin sin access_token y token_type
+        user = { ...response }
+        delete user.access_token
+        delete user.token_type
+      } else {
+        console.error('❌ Formato de respuesta desconocido para admin:', response)
+        throw new Error('Formato de respuesta inesperado del servidor')
+      }
     } else {
-      console.error('❌ Formato de respuesta desconocido:', response)
-      throw new Error('Formato de respuesta inesperado del servidor')
+      // Personal médico devuelve formato ItemResponse
+      if (response && response.data) {
+        // Formato ItemResponse: { status, message, data: {...} }
+        console.log('📦 Formato ItemResponse para personal médico detectado')
+        token = response.data.access_token || response.data.token
+        user = response.data.personal_medico || response.data
+      } else if (response && response.access_token) {
+        // Formato directo (sin ItemResponse)
+        console.log('📦 Formato directo para personal médico detectado')
+        token = response.access_token || response.token
+        user = response.personal_medico || response
+      } else {
+        console.error('❌ Formato de respuesta desconocido para personal médico:', response)
+        throw new Error('Formato de respuesta inesperado del servidor')
+      }
     }
     
     if (!token) {
@@ -94,14 +182,8 @@ const handleLogin = async () => {
     }
     
     // Asegurar que el rol esté establecido
-    // El backend devuelve personal_medico con rol: "personal_medico"
     if (user && !user.rol) {
-      // Si no tiene rol pero viene de personal_medico, establecerlo
-      if (response.data?.personal_medico) {
-        user.rol = 'personal_medico'
-      } else if (response.data?.user) {
-        user.rol = 'admin'
-      }
+      user.rol = rol // Usar el rol detectado automáticamente
     }
     
     console.log('✅ Usuario completo:', user)

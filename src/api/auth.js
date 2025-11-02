@@ -16,6 +16,9 @@ apiClient.interceptors.request.use((config) => {
   const token = localStorage.getItem('access_token')
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
+    console.log('🔐 Token agregado a la petición:', config.url)
+  } else {
+    console.warn('⚠️ No hay token disponible para la petición:', config.url)
   }
   return config
 })
@@ -26,21 +29,96 @@ apiClient.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       // Token inválido o expirado
+      console.error('❌ Error 401: Token inválido o expirado')
       localStorage.removeItem('access_token')
       localStorage.removeItem('user')
       window.location.href = '/auth'
+    } else if (error.response?.status === 403) {
+      // Error de permisos (403 Forbidden)
+      console.error('❌ Error 403: Sin permisos para esta acción')
+      console.error('📋 Detalles:', {
+        url: error.config?.url,
+        method: error.config?.method,
+        hasToken: !!localStorage.getItem('access_token'),
+        user: JSON.parse(localStorage.getItem('user') || 'null')
+      })
     }
     return Promise.reject(error)
   }
 )
 
 // Función de login de administrador
-export const loginAdminApi = async (email, password) => {
+export const loginAdminApi = async (correo, contrasena) => {
   try {
-    const res = await apiClient.post('/administrador/login', { email, password })
-    return res.data
+    console.log('🔐 Enviando login administrador:', { correo, contrasena: '***' })
+    // El backend espera: correo_electronico y constrasena
+    const loginData = {
+      correo_electronico: correo,
+      constrasena: contrasena
+    }
+    const res = await apiClient.post('/administrador/login', loginData)
+    console.log('✅ Respuesta completa del servidor:', res)
+    console.log('📦 Datos parseados:', res.data)
+    
+    // El backend devuelve directamente los datos del admin con access_token
+    const response = res.data
+    
+    // Verificar si tiene access_token (formato directo)
+    if (response.access_token) {
+      console.log('✅ Formato directo detectado (con access_token)')
+      return {
+        status: 'success',
+        message: 'Login exitoso',
+        data: {
+          access_token: response.access_token,
+          token_type: response.token_type || 'Bearer',
+          user: response // El resto de los datos del admin vienen aquí
+        }
+      }
+    } else if (response.status === 'success' && response.data) {
+      // Formato ItemResponse
+      console.log('✅ Formato ItemResponse detectado')
+      return response
+    } else {
+      // Formato directo sin ItemResponse
+      console.log('⚠️ Formato directo (sin ItemResponse)')
+      return {
+        status: 'success',
+        message: 'Login exitoso',
+        data: {
+          access_token: response.access_token || response.token,
+          token_type: response.token_type || 'Bearer',
+          user: response
+        }
+      }
+    }
   } catch (error) {
-    throw error.response?.data || error.message
+    console.error('❌ Error en loginAdminApi:', error)
+    console.error('📋 Detalles del error:', {
+      status: error.response?.status,
+      statusText: error.response?.statusText,
+      data: error.response?.data,
+      message: error.message
+    })
+    
+    // Extraer el mensaje de error del backend
+    if (error.response?.data) {
+      const errorData = error.response.data
+      
+      if (errorData.detail) {
+        if (typeof errorData.detail === 'string') {
+          throw { detail: errorData.detail }
+        } else if (Array.isArray(errorData.detail) && errorData.detail.length > 0) {
+          const firstError = errorData.detail[0]
+          const errorMsg = firstError.msg || firstError.message || JSON.stringify(firstError)
+          throw { detail: errorMsg }
+        }
+      }
+      
+      throw errorData
+    }
+    
+    throw { detail: error.message || 'Error al conectar con el servidor' }
   }
 }
 
