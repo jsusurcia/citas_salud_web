@@ -1,5 +1,5 @@
 <script setup>
-import { ref, reactive } from 'vue'
+import { ref, reactive, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/authStore'
 import { loginApi } from '../api/auth'
@@ -40,35 +40,157 @@ const showLogin = () => {
 
 // Handler de login - Conectado con el backend
 const handleLogin = async () => {
+  // Validación básica antes de enviar
+  if (!loginForm.correo || !loginForm.contrasena) {
+    errorMessage.value = 'Por favor completa todos los campos'
+    return
+  }
+  
   loading.value = true
   errorMessage.value = ''
   
   try {
+    console.log('🚀 Iniciando login...', { correo: loginForm.correo })
+    
     // Llama a la API del backend FastAPI
-    const response = await loginApi(loginForm.correo, loginForm.contrasena)
+    // Por defecto intenta login de personal médico solamente
+    const response = await loginApi(loginForm.correo, loginForm.contrasena, 'personal_medico')
     
-    // Guarda el token y usuario en el store
-    // Ajusta estos campos según la estructura de respuesta de tu FastAPI
-    const token = response.access_token || response.token
-    const user = response.user || { email: loginForm.correo }
+    console.log('✅ Respuesta recibida:', response)
     
-    if (token) {
-      authStore.login(token, user)
-      // Redirige a la página principal
+    // El backend devuelve un ItemResponse con estructura:
+    // { status, message, data: { access_token, token_type, personal_medico/user } }
+    let token = null
+    let user = null
+    
+    // Verificar estructura de respuesta
+    if (response && response.data) {
+      // Formato ItemResponse: { status, message, data: {...} }
+      console.log('📦 Formato ItemResponse detectado')
+      token = response.data.access_token || response.data.token
+      user = response.data.personal_medico || response.data.user || response.data
+    } else if (response && response.access_token) {
+      // Formato directo (sin ItemResponse)
+      console.log('📦 Formato directo detectado')
+      token = response.access_token || response.token
+      user = response.personal_medico || response.user
+    } else {
+      console.error('❌ Formato de respuesta desconocido:', response)
+      throw new Error('Formato de respuesta inesperado del servidor')
+    }
+    
+    if (!token) {
+      console.error('❌ No se recibió token')
+      throw new Error('No se recibió token de autenticación')
+    }
+    
+    console.log('✅ Token obtenido:', token.substring(0, 20) + '...')
+    console.log('✅ Usuario:', user)
+    
+    // Completar datos del usuario si faltan
+    if (user && !user.email && !user.correo) {
+      user.email = loginForm.correo
+      user.correo = loginForm.correo
+    }
+    
+    // Asegurar que el rol esté establecido
+    // El backend devuelve personal_medico con rol: "personal_medico"
+    if (user && !user.rol) {
+      // Si no tiene rol pero viene de personal_medico, establecerlo
+      if (response.data?.personal_medico) {
+        user.rol = 'personal_medico'
+      } else if (response.data?.user) {
+        user.rol = 'admin'
+      }
+    }
+    
+    console.log('✅ Usuario completo:', user)
+    console.log('🔑 Rol del usuario:', user?.rol || 'no especificado')
+    
+    // Guardar en el store
+    authStore.login(token, user)
+    console.log('✅ Login exitoso, redirigiendo...')
+    
+    // Redirigir según el rol del usuario
+    if (user && user.rol === 'personal_medico') {
+      console.log('🏥 Redirigiendo a vista de personal médico...')
+      router.push('/disponibilidad_medico')
+    } else if (user && user.rol === 'admin') {
+      console.log('👨‍💼 Redirigiendo a vista de administrador...')
+      router.push('/admin/validacion')
+    } else {
+      console.log('⚠️ Rol no identificado, redirigiendo a página principal...')
       router.push('/')
     }
   } catch (error) {
-    // Manejo de errores
-    if (error.detail) {
-      errorMessage.value = error.detail
-    } else if (error.message) {
-      errorMessage.value = error.message
-    } else {
-      errorMessage.value = 'Error al iniciar sesión. Verifica tus credenciales.'
+    // Manejo de errores del backend FastAPI
+    console.error('❌ Error completo en login:', error)
+    console.error('📋 Estructura del error:', {
+      tipo: typeof error,
+      tieneDetail: !!error?.detail,
+      tieneResponse: !!error?.response,
+      status: error?.response?.status,
+      statusText: error?.response?.statusText,
+      data: error?.response?.data
+    })
+    
+    // Extraer mensaje de error - múltiples niveles de verificación
+    let errorMsg = 'Error al iniciar sesión. Verifica tus credenciales.'
+    
+    // Prioridad 1: error.detail (ya viene del API)
+    if (error?.detail) {
+      errorMsg = error.detail
+      console.log('✅ Error detail encontrado:', error.detail)
     }
-    console.error('Error en login:', error)
+    // Prioridad 2: error.response.data.detail (formato FastAPI directo)
+    else if (error?.response?.data?.detail) {
+      errorMsg = error.response.data.detail
+      console.log('✅ Error detail en response.data:', error.response.data.detail)
+      
+      // Si detail es un array (validación de FastAPI), tomar el primero
+      if (Array.isArray(errorMsg) && errorMsg.length > 0) {
+        const firstErr = errorMsg[0]
+        errorMsg = firstErr.msg || firstErr.loc?.join('.') + ': ' + firstErr.msg || JSON.stringify(firstErr)
+        console.log('✅ Error de validación:', errorMsg)
+      }
+    }
+    // Prioridad 3: error.message
+    else if (error?.message) {
+      errorMsg = error.message
+      console.log('✅ Error message encontrado:', error.message)
+    }
+    // Prioridad 4: error.response.data.message
+    else if (error?.response?.data?.message) {
+      errorMsg = error.response.data.message
+      console.log('✅ Error message en response.data:', error.response.data.message)
+    }
+    // Prioridad 5: string directo
+    else if (typeof error === 'string') {
+      errorMsg = error
+      console.log('✅ Error como string:', error)
+    }
+    // Prioridad 6: error.response.statusText
+    else if (error?.response?.statusText) {
+      errorMsg = `Error ${error.response.status}: ${error.response.statusText}`
+      console.log('✅ Error statusText:', errorMsg)
+    }
+    // Prioridad 7: Mensaje genérico según status
+    else if (error?.response?.status === 401) {
+      errorMsg = 'Credenciales incorrectas o cuenta no validada'
+      console.log('⚠️ Error 401 genérico')
+    }
+    
+    // Asegurar que siempre se muestre un mensaje
+    errorMessage.value = errorMsg || 'Error desconocido al iniciar sesión'
+    console.log('📝 Mensaje de error final que se mostrará:', errorMessage.value)
+    console.log('🎯 errorMessage.value asignado:', errorMessage.value)
+    
+    // Forzar actualización de la UI
+    await nextTick()
+    console.log('🔄 UI actualizada')
   } finally {
     loading.value = false
+    console.log('🏁 Login finalizado, loading:', loading.value)
   }
 }
 
@@ -82,12 +204,37 @@ const handleRegister = async () => {
   errorMessage.value = ''
   
   try {
-    // Aquí puedes agregar tu lógica de registro
-    // const response = await registerApi(registerForm)
-    console.log('Register:', registerForm)
-    alert('Funcionalidad de registro pendiente de implementar')
+    // Importar la función de registro de personal médico
+    const { registerPersonalMedicoApi } = await import('../api/auth')
+    
+    // Preparar los datos según el formato esperado por el backend
+    const userData = {
+      nombres: registerForm.nombreCompleto.split(' ')[0] || registerForm.nombreCompleto,
+      apellido_paterno: registerForm.nombreCompleto.split(' ')[1] || '',
+      apellido_materno: registerForm.nombreCompleto.split(' ')[2] || '',
+      correo: registerForm.correo,
+      clave: registerForm.contrasena,
+      id_especialidad: parseInt(registerForm.especialidad) || 1,
+      // Agregar otros campos requeridos según tu schema
+    }
+    
+    const response = await registerPersonalMedicoApi(userData)
+    
+    if (response.status === 'success') {
+      alert(response.message || 'Registro exitoso. Espera validación.')
+      // Cambiar al formulario de login
+      showLogin()
+    }
   } catch (error) {
-    errorMessage.value = error.message || 'Error al registrarse'
+    // Manejo de errores
+    if (error.detail) {
+      errorMessage.value = error.detail
+    } else if (error.message) {
+      errorMessage.value = error.message
+    } else {
+      errorMessage.value = 'Error al registrarse. Intenta nuevamente.'
+    }
+    console.error('Error en registro:', error)
   } finally {
     loading.value = false
   }
@@ -204,9 +351,10 @@ const handleForgotPassword = () => {
               required
             >
               <option value="" disabled>Seleccione su especialidad</option>
-              <option value="medicina_general">Medicina general</option>
-              <option value="pediatria">Pediatría</option>
-              <option value="dermatologia">Dermatología</option>
+              <option value="1">Medicina general</option>
+              <option value="2">Pediatría</option>
+              <option value="3">Dermatología</option>
+              <!-- Ajusta los valores según los IDs reales de tu base de datos -->
             </select>
           </div>
           
@@ -396,13 +544,18 @@ form {
 
 .error-message {
   margin: 10px 0;
-  padding: 10px;
+  padding: 12px;
   background: #fee;
   color: #c33;
   border-radius: 6px;
   font-size: 13px;
   text-align: center;
   border: 1px solid #fcc;
+  display: block;
+  min-height: 20px;
+  word-wrap: break-word;
+  z-index: 10;
+  position: relative;
 }
 
 .toggle-box {
