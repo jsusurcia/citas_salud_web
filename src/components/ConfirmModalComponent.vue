@@ -1,6 +1,9 @@
 <script setup>
-import { computed } from 'vue'
+// Importar Componentes y demás
+import { computed } from 'vue';
+import ButtonComponent from './ButtonComponent.vue';
 
+// Props
 const props = defineProps({
   isOpen: {
     type: Boolean,
@@ -8,8 +11,8 @@ const props = defineProps({
   },
   type: {
     type: String,
-    default: 'danger', // danger, success, warning, info
-    validator: (value) => ['danger', 'success', 'warning', 'info'].includes(value)
+    default: 'success',
+    validator: (value) => ['success', 'danger', 'warning', 'info'].includes(value)
   },
   icon: {
     type: String,
@@ -25,9 +28,16 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['confirm', 'cancel'])
+// Component Events
+const emit = defineEmits(['confirm', 'cancel']);
+const confirmModal = (event) => {
+  emit('confirm', event);
+};
+const closeModal = (event) => {
+  emit('close', event);
+};
 
-// Íconos por tipo
+// Propiedades Computadas
 const defaultIcons = {
   danger: 'fa-solid fa-triangle-exclamation',
   success: 'fa-solid fa-circle-check',
@@ -51,50 +61,28 @@ const buttonColors = {
 
 const iconClass = computed(() => `${props.icon || defaultIcons[props.type]} ${iconColors[props.type]}`)
 const confirmButtonClass = computed(() => buttonColors[props.type])
-
-const handleConfirm = () => emit('confirm')
-const handleCancel = () => emit('cancel')
 </script>
 
 <template>
   <!-- Fondo translúcido oscuro -->
   <transition name="fade">
-    <div
-      v-if="isOpen"
-      class="fixed inset-0 z-[1000] flex justify-center items-center bg-black/40 backdrop-blur-sm"
-    >
+    <div v-if="isOpen" class="fixed inset-0 z-[1000] flex justify-center items-center bg-black/40 backdrop-blur-sm">
       <!-- Modal -->
       <transition name="scale">
-        <div
-          class="bg-white rounded-2xl shadow-lg w-full max-w-md p-6 animate-fade-in-up"
-        >
+        <div class="w-full max-w-md bg-white rounded-2xl shadow-lg p-6 animate-fade-in-up">
           <!-- Icono de advertencia -->
           <div class="flex flex-col items-center text-center">
             <i :class="iconClass" class="text-5xl mb-4"></i>
 
-            <h3 class="text-lg font-bold text-gray-800 mb-2">
-              {{ title }}
-            </h3>
+            <h3 class="text-lg font-bold text-gray-800 mb-2">{{ title }}</h3>
 
-            <p class="text-sm text-gray-600 mb-6">
-              {{ description }}
-            </p>
+            <p class="text-sm text-gray-600 mb-6">{{ description }}</p>
 
             <!-- Botones -->
             <div class="flex justify-center gap-3 w-full">
-              <button
-                @click="handleCancel"
-                class="px-5 py-2 text-sm font-medium bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition"
-              >
-                Cancelar
-              </button>
-              <button
-                @click="handleConfirm"
-                :class="confirmButtonClass"
-                class="px-5 py-2 text-sm font-medium rounded-lg transition"
-              >
-                Confirmar
-              </button>
+              <ButtonComponent type="button" variant="secondary" size="large" label="Cancelar" @click="closeModal" />
+              <ButtonComponent type="submit" :variant="type" size="large" label="Sí, deshabilitar"
+                @click="confirmModal" />
             </div>
           </div>
         </div>
@@ -109,6 +97,7 @@ const handleCancel = () => emit('cancel')
 .fade-leave-active {
   transition: opacity 0.2s ease;
 }
+
 .fade-enter-from,
 .fade-leave-to {
   opacity: 0;
@@ -118,6 +107,7 @@ const handleCancel = () => emit('cancel')
 .scale-leave-active {
   transition: all 0.25s ease;
 }
+
 .scale-enter-from,
 .scale-leave-to {
   transform: scale(0.95);

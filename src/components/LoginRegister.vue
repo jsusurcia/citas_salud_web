@@ -1,8 +1,16 @@
 <script setup>
-import { ref, reactive } from 'vue'
+import { ref, reactive, nextTick } from 'vue'
+import { useRouter } from 'vue-router'
+import { useAuthStore } from '../stores/authStore'
+import { loginApi } from '../api/auth'
+
+const router = useRouter()
+const authStore = useAuthStore()
 
 // Estado para controlar la animación
 const isActive = ref(false)
+const loading = ref(false)
+const errorMessage = ref('')
 
 // Formulario de login
 const loginForm = reactive({
@@ -22,25 +30,296 @@ const registerForm = reactive({
 // Funciones para cambiar entre login y registro
 const showRegister = () => {
   isActive.value = true
+  errorMessage.value = ''
 }
 
 const showLogin = () => {
   isActive.value = false
+  errorMessage.value = ''
 }
 
-// Handlers de formularios
-const handleLogin = () => {
-  console.log('Login:', loginForm)
-  // Aquí puedes agregar tu lógica de autenticación
-}
-
-const handleRegister = () => {
-  if (registerForm.contrasena !== registerForm.contrasenaConfirmar) {
-    alert('Las contraseñas no coinciden')
+// Handler de login - Conectado con el backend
+const handleLogin = async () => {
+  // Validación básica antes de enviar
+  if (!loginForm.correo || !loginForm.contrasena) {
+    errorMessage.value = 'Por favor completa todos los campos'
     return
   }
-  console.log('Register:', registerForm)
-  // Aquí puedes agregar tu lógica de registro
+  
+  loading.value = true
+  errorMessage.value = ''
+  
+  try {
+    console.log('🚀 Iniciando login...', { correo: loginForm.correo })
+    
+    // Intentar login automáticamente: primero admin, luego personal médico
+    let response = null
+    let user = null
+    let token = null
+    let rol = null
+    
+    // Intento 1: Login como administrador
+    let adminTried = false
+    let medicoTried = false
+    
+    try {
+      console.log('👨‍💼 Intentando login como administrador...')
+      const { loginAdminApi } = await import('../api/auth')
+      response = await loginAdminApi(loginForm.correo, loginForm.contrasena)
+      console.log('✅ Login admin exitoso')
+      rol = 'admin'
+      adminTried = true
+    } catch (adminError) {
+      adminTried = true
+      const status = adminError?.response?.status
+      const statusText = adminError?.response?.statusText
+      
+      console.log(`⚠️ Login admin falló: ${status} ${statusText}`)
+      
+      // Si es 404, el endpoint no existe, no tiene sentido intentar personal médico
+      if (status === 404) {
+        console.log('❌ Endpoint de admin no encontrado (404)')
+      }
+      // Si es 422, los datos están mal formateados pero el endpoint existe
+      else if (status === 422) {
+        console.log('⚠️ Datos de admin incorrectos (422), puede ser problema de formato')
+      }
+      
+      // Intento 2: Login como personal médico
+      try {
+        console.log('🏥 Intentando login como personal médico...')
+        const { loginPersonalMedicoApi } = await import('../api/auth')
+        response = await loginPersonalMedicoApi(loginForm.correo, loginForm.contrasena)
+        console.log('✅ Login personal médico exitoso')
+        rol = 'personal_medico'
+        medicoTried = true
+      } catch (medicoError) {
+        medicoTried = true
+        const medicoStatus = medicoError?.response?.status
+        
+        console.error('❌ Ambos tipos de login fallaron')
+        console.error('📋 Resumen de errores:', {
+          admin: { status: adminError?.response?.status, detail: adminError?.response?.data?.detail },
+          personal_medico: { status: medicoStatus, detail: medicoError?.response?.data?.detail }
+        })
+        
+        // Si ambos devuelven 404, probablemente los endpoints no existen
+        if (status === 404 && medicoStatus === 404) {
+          throw { detail: 'Los endpoints de login no están disponibles. Verifica la configuración del backend.' }
+        }
+        
+        // Si personal médico falla con 404, mostrar mensaje específico
+        if (medicoStatus === 404) {
+          throw { detail: 'Endpoint de personal médico no encontrado. Verifica la ruta /personal_medico/login en el backend.' }
+        }
+        
+        // Si personal médico falla con otro error, usar su mensaje
+        if (medicoError?.detail || medicoError?.response?.data?.detail) {
+          throw medicoError
+        }
+        
+        // Si admin falló con 422 y personal médico con otro error, usar el de personal médico
+        throw medicoError
+      }
+    }
+    
+    console.log('✅ Respuesta recibida:', response)
+    
+    // El backend devuelve un ItemResponse con estructura:
+    // { status, message, data: { access_token, token_type, personal_medico/user } }
+    
+    // Verificar estructura de respuesta según el formato del backend
+    if (rol === 'admin') {
+      // Admin devuelve formato directo: { **admin.dict(), access_token, token_type }
+      if (response && response.data && response.data.access_token) {
+        // Si viene envuelto en ItemResponse
+        console.log('📦 Formato ItemResponse para admin detectado')
+        token = response.data.access_token
+        user = response.data.user || response.data // Los datos del admin están en response.data
+      } else if (response && response.access_token) {
+        // Formato directo (sin ItemResponse) - el backend devuelve directamente
+        console.log('📦 Formato directo para admin detectado')
+        token = response.access_token
+        // El backend devuelve todos los campos del admin más access_token y token_type
+        // Necesitamos extraer los datos del admin sin access_token y token_type
+        user = { ...response }
+        delete user.access_token
+        delete user.token_type
+      } else {
+        console.error('❌ Formato de respuesta desconocido para admin:', response)
+        throw new Error('Formato de respuesta inesperado del servidor')
+      }
+    } else {
+      // Personal médico devuelve formato ItemResponse
+      if (response && response.data) {
+        // Formato ItemResponse: { status, message, data: {...} }
+        console.log('📦 Formato ItemResponse para personal médico detectado')
+        token = response.data.access_token || response.data.token
+        user = response.data.personal_medico || response.data
+      } else if (response && response.access_token) {
+        // Formato directo (sin ItemResponse)
+        console.log('📦 Formato directo para personal médico detectado')
+        token = response.access_token || response.token
+        user = response.personal_medico || response
+      } else {
+        console.error('❌ Formato de respuesta desconocido para personal médico:', response)
+        throw new Error('Formato de respuesta inesperado del servidor')
+      }
+    }
+    
+    if (!token) {
+      console.error('❌ No se recibió token')
+      throw new Error('No se recibió token de autenticación')
+    }
+    
+    console.log('✅ Token obtenido:', token.substring(0, 20) + '...')
+    console.log('✅ Usuario:', user)
+    
+    // Completar datos del usuario si faltan
+    if (user && !user.email && !user.correo) {
+      user.email = loginForm.correo
+      user.correo = loginForm.correo
+    }
+    
+    // Asegurar que el rol esté establecido
+    if (user && !user.rol) {
+      user.rol = rol // Usar el rol detectado automáticamente
+    }
+    
+    console.log('✅ Usuario completo:', user)
+    console.log('🔑 Rol del usuario:', user?.rol || 'no especificado')
+    
+    // Guardar en el store
+    authStore.login(token, user)
+    console.log('✅ Login exitoso, redirigiendo...')
+    
+    // Redirigir según el rol del usuario
+    if (user && user.rol === 'personal_medico') {
+      console.log('🏥 Redirigiendo a vista de personal médico...')
+      router.push('/disponibilidad_medico')
+    } else if (user && user.rol === 'admin') {
+      console.log('👨‍💼 Redirigiendo a vista de administrador...')
+      router.push('/admin/validacion')
+    } else {
+      console.log('⚠️ Rol no identificado, redirigiendo a página principal...')
+      router.push('/')
+    }
+  } catch (error) {
+    // Manejo de errores del backend FastAPI
+    console.error('❌ Error completo en login:', error)
+    console.error('📋 Estructura del error:', {
+      tipo: typeof error,
+      tieneDetail: !!error?.detail,
+      tieneResponse: !!error?.response,
+      status: error?.response?.status,
+      statusText: error?.response?.statusText,
+      data: error?.response?.data
+    })
+    
+    // Extraer mensaje de error - múltiples niveles de verificación
+    let errorMsg = 'Error al iniciar sesión. Verifica tus credenciales.'
+    
+    // Prioridad 1: error.detail (ya viene del API)
+    if (error?.detail) {
+      errorMsg = error.detail
+      console.log('✅ Error detail encontrado:', error.detail)
+    }
+    // Prioridad 2: error.response.data.detail (formato FastAPI directo)
+    else if (error?.response?.data?.detail) {
+      errorMsg = error.response.data.detail
+      console.log('✅ Error detail en response.data:', error.response.data.detail)
+      
+      // Si detail es un array (validación de FastAPI), tomar el primero
+      if (Array.isArray(errorMsg) && errorMsg.length > 0) {
+        const firstErr = errorMsg[0]
+        errorMsg = firstErr.msg || firstErr.loc?.join('.') + ': ' + firstErr.msg || JSON.stringify(firstErr)
+        console.log('✅ Error de validación:', errorMsg)
+      }
+    }
+    // Prioridad 3: error.message
+    else if (error?.message) {
+      errorMsg = error.message
+      console.log('✅ Error message encontrado:', error.message)
+    }
+    // Prioridad 4: error.response.data.message
+    else if (error?.response?.data?.message) {
+      errorMsg = error.response.data.message
+      console.log('✅ Error message en response.data:', error.response.data.message)
+    }
+    // Prioridad 5: string directo
+    else if (typeof error === 'string') {
+      errorMsg = error
+      console.log('✅ Error como string:', error)
+    }
+    // Prioridad 6: error.response.statusText
+    else if (error?.response?.statusText) {
+      errorMsg = `Error ${error.response.status}: ${error.response.statusText}`
+      console.log('✅ Error statusText:', errorMsg)
+    }
+    // Prioridad 7: Mensaje genérico según status
+    else if (error?.response?.status === 401) {
+      errorMsg = 'Credenciales incorrectas o cuenta no validada'
+      console.log('⚠️ Error 401 genérico')
+    }
+    
+    // Asegurar que siempre se muestre un mensaje
+    errorMessage.value = errorMsg || 'Error desconocido al iniciar sesión'
+    console.log('📝 Mensaje de error final que se mostrará:', errorMessage.value)
+    console.log('🎯 errorMessage.value asignado:', errorMessage.value)
+    
+    // Forzar actualización de la UI
+    await nextTick()
+    console.log('🔄 UI actualizada')
+  } finally {
+    loading.value = false
+    console.log('🏁 Login finalizado, loading:', loading.value)
+  }
+}
+
+const handleRegister = async () => {
+  if (registerForm.contrasena !== registerForm.contrasenaConfirmar) {
+    errorMessage.value = 'Las contraseñas no coinciden'
+    return
+  }
+  
+  loading.value = true
+  errorMessage.value = ''
+  
+  try {
+    // Importar la función de registro de personal médico
+    const { registerPersonalMedicoApi } = await import('../api/auth')
+    
+    // Preparar los datos según el formato esperado por el backend
+    const userData = {
+      nombres: registerForm.nombreCompleto.split(' ')[0] || registerForm.nombreCompleto,
+      apellido_paterno: registerForm.nombreCompleto.split(' ')[1] || '',
+      apellido_materno: registerForm.nombreCompleto.split(' ')[2] || '',
+      correo: registerForm.correo,
+      clave: registerForm.contrasena,
+      id_especialidad: parseInt(registerForm.especialidad) || 1,
+      // Agregar otros campos requeridos según tu schema
+    }
+    
+    const response = await registerPersonalMedicoApi(userData)
+    
+    if (response.status === 'success') {
+      alert(response.message || 'Registro exitoso. Espera validación.')
+      // Cambiar al formulario de login
+      showLogin()
+    }
+  } catch (error) {
+    // Manejo de errores
+    if (error.detail) {
+      errorMessage.value = error.detail
+    } else if (error.message) {
+      errorMessage.value = error.message
+    } else {
+      errorMessage.value = 'Error al registrarse. Intenta nuevamente.'
+    }
+    console.error('Error en registro:', error)
+  } finally {
+    loading.value = false
+  }
 }
 
 const handleForgotPassword = () => {
@@ -84,8 +363,14 @@ const handleForgotPassword = () => {
             <a href="#" @click.prevent="handleForgotPassword">Olvidé mi contraseña</a>
           </div>
           
-          <button type="submit" class="btn">
-            Iniciar Sesión
+          <!-- Mensaje de error -->
+          <div v-if="errorMessage" class="error-message">
+            {{ errorMessage }}
+          </div>
+          
+          <button type="submit" class="btn" :disabled="loading">
+            <span v-if="loading">Cargando...</span>
+            <span v-else>Iniciar Sesión</span>
           </button>
         </form>
       </div>
@@ -148,14 +433,21 @@ const handleForgotPassword = () => {
               required
             >
               <option value="" disabled>Seleccione su especialidad</option>
-              <option value="medicina_general">Medicina general</option>
-              <option value="pediatria">Pediatría</option>
-              <option value="dermatologia">Dermatología</option>
+              <option value="1">Medicina general</option>
+              <option value="2">Pediatría</option>
+              <option value="3">Dermatología</option>
+              <!-- Ajusta los valores según los IDs reales de tu base de datos -->
             </select>
           </div>
           
-          <button type="submit" class="btn">
-            Registrarse
+          <!-- Mensaje de error -->
+          <div v-if="errorMessage" class="error-message">
+            {{ errorMessage }}
+          </div>
+          
+          <button type="submit" class="btn" :disabled="loading">
+            <span v-if="loading">Cargando...</span>
+            <span v-else>Registrarse</span>
           </button>
         </form>
       </div>
@@ -324,6 +616,28 @@ form {
   font-size: 16px;
   color: #fff;
   font-weight: 600;
+  transition: opacity 0.3s;
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.error-message {
+  margin: 10px 0;
+  padding: 12px;
+  background: #fee;
+  color: #c33;
+  border-radius: 6px;
+  font-size: 13px;
+  text-align: center;
+  border: 1px solid #fcc;
+  display: block;
+  min-height: 20px;
+  word-wrap: break-word;
+  z-index: 10;
+  position: relative;
 }
 
 .toggle-box {
