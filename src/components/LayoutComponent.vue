@@ -21,7 +21,7 @@ onMounted(() => {
 // Usuario de prueba
 const user = {
     userName: "Jesus Urcia",
-    userEmail: "urciajesus72@gmail.com",
+    userEmail: "megutaelpene@gmail.com",
     userRole: "admin"
 }
 const menuItems = useMenuItems(user.userRole)

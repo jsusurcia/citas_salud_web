@@ -64,17 +64,17 @@ const router = createRouter({
             component: ValidacionPersonalView
         },
         {
-            path: "/disponibilidad_medico",
+            path: "/personal_medico/disponibilidad",
             "name": "disponibilidad_medico",
             component: DoctorsAvailabilityView
         },
         {
-            path: "/citas_medico",
+            path: "/personal_medico/gestion_citas",
             "name": "citas_medico",
             component: DoctorsAppointmentView
         },
         {
-            path: "/chat_medico",
+            path: "/personal_medico/chats",
             "name": "chat_medico",
             component: ChatView
         },
