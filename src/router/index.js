@@ -9,8 +9,8 @@ import DoctorsAppointmentView from "../views/DoctorsAppointmentView.vue";
 import ChatView from "../views/ChatView.vue";
 import EspecialidadesView from "../views/EspecialidadesView.vue";
 import ReportesView from "../views/ReportesView.vue";
+import GeneradorReportesView from "../views/GeneradorReportesView.vue";
 
-import ReportesView from "../views/ReportesView.vue";
 // Implementar en la autenticación cuando se implemente
 // const routes = [
 //     { path: '/auth', component: AuthView },
