@@ -1,104 +1,111 @@
 <template>
   <div class="chat-container">
-    <!-- Selector de usuario actual -->
-    <div class="user-selector">
-      <label>Usuario actual:</label>
-      <select v-model="currentUserId">
-        <option value="1234">Alex</option>
-        <option value="5678">María</option>
-      </select>
-    </div>
-
-    <!-- Componente del chat -->
-    <vue-advanced-chat
-      :current-user-id="currentUserId"
-      :rooms="JSON.stringify(rooms)"
-      :messages="JSON.stringify(messages)"
-      :room-actions="JSON.stringify(roomActions)"
-      @send-message="handleSendMessage"
-    />
+    <vue-advanced-chat :current-user-id="currentUserId" :rooms="JSON.stringify(chatRooms)"
+      :messages="JSON.stringify(formattedMessages)" :room-actions="JSON.stringify(roomActions)"
+      :messages-loaded="messagesLoaded" @send-message="handleSendMessage" />
   </div>
 </template>
 
-<script>
+<script setup>
 import { register } from 'vue-advanced-chat'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { useChatStore } from '../stores/chat.js'
+import { useAuthStore } from '../stores/authStore'
+
 register()
 
-export default {
-  data() {
-    return {
-      // Usuario actual (puedes cambiarlo en el select)
-      currentUserId: '1234',
+// --- 1. Inicializar Stores ---
+const chatStore = useChatStore()
+const authStore = useAuthStore()
 
-      // Lista de salas
-      rooms: [
-        {
-          roomId: 'room1',
-          roomName: 'Gatita Mall del Sur',
-          lastMessage: {
-            content: 'Amia pa llantear p puede ser',
-            senderId: '5678',
-            username: 'María',
-            timestamp: new Date().toISOString()
-          },
-          users: [
-            { _id: '1234', username: 'Alex' },
-            { _id: '5678', username: 'María' }
-          ]
-        }
-      ],
+// --- 2. Estado del Componente ---
 
-      // Mensajes de ejemplo
-      messages: [
-        {
-          _id: '1',
-          content: 'Hola, ¿cómo estás?',
-          senderId: '5678',
-          username: 'María',
-          timestamp: new Date().toISOString(),
-          saved: true,
-          distributed: true
-        },
-        {
-          _id: '2',
-          content: 'Todo bien, gracias 😄',
-          senderId: '1234',
-          username: 'Alex',
-          timestamp: new Date().toISOString(),
-          saved: true,
-          distributed: true
-        }
-      ],
+// ID del usuario actual (viene de tu login de FastAPI)
+// Ajusta 'authStore.user.id' al nombre correcto en tu authStore
+const currentUserId = computed(() => authStore.user?.id || 'id_desconocido')
 
-      // Acciones del menú de sala
-      roomActions: [
-        { name: 'inviteUser', title: 'Invitar usuario' },
-        { name: 'removeUser', title: 'Eliminar usuario' },
-        { name: 'deleteRoom', title: 'Eliminar sala' }
-      ]
-    }
-  },
-
-  methods: {
-    handleSendMessage({ content, roomId }) {
-      const newMessage = {
-        _id: Date.now().toString(),
-        content,
-        senderId: this.currentUserId,
-        username:
-          this.currentUserId === '1234'
-            ? 'Alex'
-            : 'María',
-        timestamp: new Date().toISOString(),
-        saved: true,
-        distributed: true
-      }
-
-      this.messages.push(newMessage)
-    }
+// Como dijiste que es Paciente <-> Médico, podemos definir una sala estática.
+// En un futuro, esto podría venir de una API.
+const chatRooms = ref([
+  {
+    roomId: 'chat_principal_medico', // Un ID de sala único
+    roomName: 'Chat Cita Salud', // El nombre que verá el usuario
+    users: [
+      // { _id: 'ID_PACIENTE', username: 'Paciente...' },
+      // { _id: 'ID_MEDICO', username: 'Dr. ...' }
+    ]
   }
+])
+
+// Acciones de sala (puedes mantener las que tenías)
+const roomActions = ref([
+  { name: 'deleteRoom', title: 'Eliminar chat' }
+])
+
+// Indica a la librería si los mensajes iniciales se han cargado
+const messagesLoaded = computed(() => chatStore.messages.length > 0)
+
+// --- 3. Mapeo de Mensajes (La parte más importante) ---
+
+// `vue-advanced-chat` espera un formato, y tu Mongo tiene otro.
+// Esta propiedad computada hace la "traducción".
+const formattedMessages = computed(() => {
+  return chatStore.messages.map(mongoMsg => {
+    return {
+      _id: mongoMsg._id,
+      content: mongoMsg.text,            // Mapeo: text -> content
+      senderId: mongoMsg.user_id,        // Mapeo: user_id -> senderId
+      timestamp: mongoMsg.timestamp,
+      username: mongoMsg.rol === 'paciente' ? 'Paciente' : 'Personal Médico', // Asignamos username según el rol
+
+      // La librería usa esto para mostrar el tick de "enviado"
+      saved: true,
+      distributed: true,
+    }
+  })
+})
+
+// --- 4. Métodos (Acciones) ---
+
+/**
+ * Se dispara cuando el usuario presiona "enviar" en la UI.
+ */
+const handleSendMessage = (event) => {
+  // event contiene { content, roomId, ... }
+  
+  // 💡 AÑADE ESTA VALIDACIÓN
+  const text = event.content.trim();
+  if (!text) {
+    // Si el mensaje está vacío o solo tiene espacios, no hagas nada.
+    return; 
+  }
+
+  // Llamamos a nuestra acción de Pinia solo si hay texto
+  chatStore.sendMessage(text);
 }
+// --- 5. Ciclo de Vida ---
+
+onMounted(() => {
+  // Conectar al WebSocket cuando el componente se monta
+  chatStore.connect()
+
+  // (Opcional) Si necesitas cargar el historial al inicio:
+  // await chatStore.fetchMessageHistory();
+})
+
+onUnmounted(() => {
+  // Desconectar al salir de la vista para limpiar
+  
+  // 🛑 ¡COMENTA ESTA LÍNEA MIENTRAS DESARROLLAS!
+  // chatStore.disconnect()
+  
+  // El HMR de Vite está causando que esto se llame
+  // constantemente, creando un bucle de desconexión.
+  // En producción (npm run build), sí funcionará bien.
+})
+
 </script>
+
 
 <style>
 .chat-container {

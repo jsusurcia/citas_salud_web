@@ -11,272 +11,157 @@ const apiClient = axios.create({
   },
 })
 
-// Interceptor para agregar token a las peticiones
+// === INTERCEPTOR DE PETICIÓN (Request) ===
+// Agrega el token a CADA petición
 apiClient.interceptors.request.use((config) => {
   const token = localStorage.getItem('access_token')
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
-    console.log('🔐 Token agregado a la petición:', config.url)
-  } else {
-    console.warn('⚠️ No hay token disponible para la petición:', config.url)
   }
   return config
 })
 
-// Interceptor para manejar errores de respuesta
+// === INTERCEPTOR DE RESPUESTA (Response) ===
+// Centraliza TODO el manejo de errores aquí
 apiClient.interceptors.response.use(
-  (response) => response,
+  (response) => response, // Petición exitosa, solo la pasamos
   (error) => {
-    if (error.response?.status === 401) {
-      // Token inválido o expirado
+    const { response } = error
+
+    // 1. Error de Token (401)
+    if (response?.status === 401) {
       console.error('❌ Error 401: Token inválido o expirado')
       localStorage.removeItem('access_token')
       localStorage.removeItem('user')
       window.location.href = '/auth'
-    } else if (error.response?.status === 403) {
-      // Error de permisos (403 Forbidden)
-      console.error('❌ Error 403: Sin permisos para esta acción')
-      console.error('📋 Detalles:', {
-        url: error.config?.url,
-        method: error.config?.method,
-        hasToken: !!localStorage.getItem('access_token'),
-        user: JSON.parse(localStorage.getItem('user') || 'null')
-      })
+      return Promise.reject(new Error('Sesión expirada. Inicie sesión de nuevo.'))
     }
+
+    // 2. Error de Permisos (403)
+    if (response?.status === 403) {
+      console.error('❌ Error 403: Sin permisos')
+      return Promise.reject(new Error('No tiene permisos para esta acción.'))
+    }
+
+    // 3. Error de FastAPI (400, 404, 422, etc.)
+    // Aquí parseamos el "detail"
+    if (response?.data?.detail) {
+      const { detail } = response.data
+      let errorMessage = 'Ocurrió un error.'
+
+      if (typeof detail === 'string') {
+        // ej: { detail: "No existe la cuenta" }
+        errorMessage = detail
+      } else if (Array.isArray(detail) && detail.length > 0) {
+        // ej: { detail: [{ loc: [...], msg: "..." }] }
+        errorMessage = `Error de validación: ${detail[0].msg}`
+      }
+
+      // Creamos un nuevo error con el mensaje limpio
+      const parsedError = new Error(errorMessage)
+      // Adjuntamos la respuesta original por si necesitamos el status
+      parsedError.response = response
+      return Promise.reject(parsedError)
+    }
+
+    // 4. Otros errores de Axios
     return Promise.reject(error)
   }
 )
 
-// Función de login de administrador
-export const loginAdminApi = async (correo, contrasena) => {
-  try {
-    console.log('🔐 Enviando login administrador:', { correo, contrasena: '***' })
-    // El backend espera: correo_electronico y constrasena
-    const loginData = {
-      correo_electronico: correo,
-      constrasena: contrasena
-    }
-    const res = await apiClient.post('/administrador/login', loginData)
-    console.log('✅ Respuesta completa del servidor:', res)
-    console.log('📦 Datos parseados:', res.data)
-    
-    // El backend devuelve directamente los datos del admin con access_token
-    const response = res.data
-    
-    // Verificar si tiene access_token (formato directo)
-    if (response.access_token) {
-      console.log('✅ Formato directo detectado (con access_token)')
-      return {
-        status: 'success',
-        message: 'Login exitoso',
-        data: {
-          access_token: response.access_token,
-          token_type: response.token_type || 'Bearer',
-          user: response // El resto de los datos del admin vienen aquí
-        }
-      }
-    } else if (response.status === 'success' && response.data) {
-      // Formato ItemResponse
-      console.log('✅ Formato ItemResponse detectado')
-      return response
-    } else {
-      // Formato directo sin ItemResponse
-      console.log('⚠️ Formato directo (sin ItemResponse)')
-      return {
-        status: 'success',
-        message: 'Login exitoso',
-        data: {
-          access_token: response.access_token || response.token,
-          token_type: response.token_type || 'Bearer',
-          user: response
-        }
-      }
-    }
-  } catch (error) {
-    console.error('❌ Error en loginAdminApi:', error)
-    console.error('📋 Detalles del error:', {
-      status: error.response?.status,
-      statusText: error.response?.statusText,
-      data: error.response?.data,
-      message: error.message
-    })
-    
-    // Extraer el mensaje de error del backend
-    if (error.response?.data) {
-      const errorData = error.response.data
-      
-      if (errorData.detail) {
-        if (typeof errorData.detail === 'string') {
-          throw { detail: errorData.detail }
-        } else if (Array.isArray(errorData.detail) && errorData.detail.length > 0) {
-          const firstError = errorData.detail[0]
-          const errorMsg = firstError.msg || firstError.message || JSON.stringify(firstError)
-          throw { detail: errorMsg }
-        }
-      }
-      
-      throw errorData
-    }
-    
-    throw { detail: error.message || 'Error al conectar con el servidor' }
+/**
+* Normaliza la respuesta de login.
+* * 🔽 ESTA ES LA FUNCIÓN CORREGIDA 🔽
+*
+* Extrae el objeto de usuario (admin o personal_medico) y lo
+* coloca en una clave 'user' consistente.
+*/
+const normalizeLoginResponse = (response) => {
+  const data = response.data;
+
+  // 1. Validar formato ItemResponse
+  if (data?.status !== 'success' || !data?.data) {
+    throw new Error('Formato de respuesta de login inesperado.');
   }
+
+  const loginData = data.data; // Esto es { access_token, ..., admin: {} } O { ..., personal_medico: {} }
+
+  // 2. ¡La magia! Extraer el objeto de usuario sin importar la clave
+  const userObject = loginData.admin || loginData.personal_medico;
+
+  if (!userObject) {
+    // Esto pasaría si el backend responde con éxito pero no viene ni 'admin' ni 'personal_medico'
+    throw new Error('No se encontró el objeto de usuario (admin/personal_medico) en la respuesta.');
+  }
+
+  // 3. Construir la respuesta final y limpia
+  return {
+    access_token: loginData.access_token,
+    token_type: loginData.token_type,
+    user: userObject // userObject es { id, nombre, ..., rol }
+  };
 }
 
-// Función de login de personal médico
-export const loginPersonalMedicoApi = async (correo, clave) => {
+// === API DE AUTENTICACIÓN UNIFICADA ===
+
+/**
+* Función de login "inteligente" y unificada.
+*
+* 🔽 ESTA ES LA FUNCIÓN ACTUALIZADA 🔽
+* * (Solo le quitamos el parámetro 'role' a normalizeLoginResponse)
+*/
+export const loginApi = async (correo, clave) => {
+  // 1. Intentar como Personal Médico (el caso más común)
   try {
-    console.log('🔐 Enviando login personal médico:', { correo, clave: '***' })
+    console.log('🏥 Intentando login como personal médico...')
     const res = await apiClient.post('/personal_medico/login', { correo, clave })
-    
-    // El backend devuelve ItemResponse:
-    // { status: "success", message: "...", data: { access_token, token_type, personal_medico } }
-    console.log('✅ Respuesta completa del servidor:', res)
-    console.log('📦 Datos parseados:', res.data)
-    
-    // Axios parsea automáticamente, res.data ya es el objeto JSON
-    const response = res.data
-    
-    // Verificar estructura ItemResponse
-    if (response.status === 'success' && response.data) {
-      console.log('✅ Formato ItemResponse correcto')
-      return response
-    } else if (response.access_token) {
-      // Formato directo (sin ItemResponse)
-      console.log('⚠️ Formato directo (sin ItemResponse)')
-      return response
-    } else {
-      console.error('❌ Formato de respuesta inesperado:', response)
-      throw { detail: 'Formato de respuesta inesperado del servidor' }
-    }
-  } catch (error) {
-    // Mejor manejo de errores para debug
-    console.error('❌ Error en loginPersonalMedicoApi:', error)
-    console.error('📋 Detalles del error:', {
-      status: error.response?.status,
-      statusText: error.response?.statusText,
-      data: error.response?.data,
-      message: error.message
-    })
-    
-    // Extraer el mensaje de error del backend
-    if (error.response?.data) {
-      const errorData = error.response.data
-      
-      // El backend FastAPI puede devolver:
-      // - { detail: "mensaje" } (HTTPException)
-      // - { detail: [...] } (ValidationError)
-      // - Otro formato
-      
-      if (errorData.detail) {
-        // Si detail es un string, devolverlo directamente
-        if (typeof errorData.detail === 'string') {
-          console.log('📝 Error detail (string):', errorData.detail)
-          throw { detail: errorData.detail }
-        }
-        // Si detail es un array (errores de validación), tomar el primero
-        else if (Array.isArray(errorData.detail) && errorData.detail.length > 0) {
-          const firstError = errorData.detail[0]
-          const errorMsg = firstError.msg || firstError.message || JSON.stringify(firstError)
-          console.log('📝 Error detail (array):', errorMsg)
-          throw { detail: errorMsg }
-        }
-      }
-      
-      // Si no tiene detail, devolver todo el objeto de error
-      throw errorData
-    }
-    
-    // Si no hay response, lanzar error genérico
-    throw { detail: error.message || 'Error al conectar con el servidor' }
-  }
-}
+    // Normalizamos la respuesta (ya no pasamos el rol)
+    return normalizeLoginResponse(res)
 
-// Función de login unificado
-export const loginApi = async (correo, clave, tipo = 'personal_medico') => {
-  console.log('🔑 loginApi llamado:', { correo, tipo })
-  
-  if (tipo === 'administrador') {
-    return await loginAdminApi(correo, clave)
-  } else if (tipo === 'personal_medico') {
-    return await loginPersonalMedicoApi(correo, clave)
-  } else {
-    // Modo auto: intenta primero personal médico, luego administrador
-    // Solo si el error NO es específico de personal médico (404 o "no encontrado")
-    let lastError = null
-    let lastErrorMsg = null
-    
-    // Intentar login de personal médico
+  } catch (medicoError) {
+    console.warn('⚠️ Login personal médico falló:', medicoError.message)
+
+    // 2. Comprobar si fue un error "No Encontrado"
+    const isNotFoundError =
+      medicoError.response?.status === 404 ||
+      medicoError.message.toLowerCase().includes('no existe') ||
+      medicoError.message.toLowerCase().includes('no encontrado')
+
+    // 3. Si NO fue "No Encontrado" (ej: "contraseña incorrecta"),
+    // lanzamos el error inmediatamente. No probamos como admin.
+    if (!isNotFoundError) {
+      throw medicoError
+    }
+
+    // 4. Si FUE "No Encontrado", intentamos como Administrador
+    console.log('👨‍💼 Fallback: Intentando login como administrador...')
     try {
-      console.log('🔄 Intentando login personal médico...')
-      const result = await loginPersonalMedicoApi(correo, clave)
-      console.log('✅ Login personal médico exitoso')
-      return result
-    } catch (error) {
-      console.log('❌ Error en login personal médico:', error)
-      
-      // Extraer mensaje del error
-      let errorMsg = 'Error al iniciar sesión como personal médico'
-      if (error && error.detail) {
-        errorMsg = error.detail
-      } else if (error && error.response && error.response.data && error.response.data.detail) {
-        errorMsg = error.response.data.detail
-      } else if (error && error.message) {
-        errorMsg = error.message
-      }
-      
-      lastError = error
-      lastErrorMsg = errorMsg
-      
-      console.log('📝 Mensaje de error personal médico:', errorMsg)
-      
-      // Solo intentar administrador si el error NO es "no encontrado" o 404
-      const isNotFoundError = 
-        errorMsg.toLowerCase().includes('no encontrado') ||
-        errorMsg.toLowerCase().includes('not found') ||
-        error.response?.status === 404 ||
-        error.response?.status === 422
-      
-      if (isNotFoundError) {
-        // Si es error de "no encontrado", no intentar administrador
-        console.log('⚠️ Error de "no encontrado" - no se intentará administrador')
-        throw error
-      }
-      
-      console.log('🔄 Intentando login administrador como fallback...')
-      
-      // Si falla personal médico con otro error, intenta administrador
-      try {
-        const result = await loginAdminApi(correo, clave)
-        console.log('✅ Login administrador exitoso')
-        return result
-      } catch (adminError) {
-        console.log('❌ Error en login administrador:', adminError)
-        
-        // Lanzar el error original de personal médico si ambos fallan
-        throw lastError || adminError
-      }
+      const res = await apiClient.post('/administrador/login', {
+        correo_electronico: correo,
+        constrasena: clave,
+      })
+      // Normalizamos la respuesta (ya no pasamos el rol)
+      return normalizeLoginResponse(res)
+
+    } catch (adminError) {
+      console.error('❌ Login administrador también falló:', adminError.message)
+      // Lanzamos el error de admin, que es el último que falló
+      throw adminError
     }
   }
 }
-
-// Función de registro de personal médico
+/**
+ * Funciones de registro (ahora súper limpias)
+ * El interceptor se encarga del 'catch'
+ */
 export const registerPersonalMedicoApi = async (userData) => {
-  try {
-    const res = await apiClient.post('/personal_medico/', userData)
-    return res.data
-  } catch (error) {
-    throw error.response?.data || error.message
-  }
+  const res = await apiClient.post('/personal_medico/', userData)
+  return res.data // En éxito, solo devolvemos los datos
 }
 
-// Función de registro de administrador (si la necesitas)
 export const registerAdminApi = async (userData) => {
-  try {
-    const res = await apiClient.post('/administrador/register', userData)
-    return res.data
-  } catch (error) {
-    throw error.response?.data || error.message
-  }
+  const res = await apiClient.post('/administrador/register', userData)
+  return res.data
 }
 
 export default apiClient
