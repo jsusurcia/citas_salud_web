@@ -1,9 +1,10 @@
 import axios from 'axios'
 
-// URL del backend FastAPI
+// bajito ese que lo programó. que lo regresen a primaria
+// les ahorré 120 líneas
+
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
-// Configurar instancia de axios con opciones por defecto
 const apiClient = axios.create({
   baseURL: API_URL,
   headers: {
@@ -22,9 +23,9 @@ apiClient.interceptors.request.use((config) => {
 })
 
 // === INTERCEPTOR DE RESPUESTA (Response) ===
-// Centraliza TODO el manejo de errores aquí
+// centraliza TODO el manejo de errores aquí
 apiClient.interceptors.response.use(
-  (response) => response, // Petición exitosa, solo la pasamos
+  (response) => response, // petición exitosa, solo la pasamos
   (error) => {
     const { response } = error
 
@@ -71,7 +72,6 @@ apiClient.interceptors.response.use(
 
 /**
 * Normaliza la respuesta de login.
-* * 🔽 ESTA ES LA FUNCIÓN CORREGIDA 🔽
 *
 * Extrae el objeto de usuario (admin o personal_medico) y lo
 * coloca en una clave 'user' consistente.
@@ -86,7 +86,7 @@ const normalizeLoginResponse = (response) => {
 
   const loginData = data.data; // Esto es { access_token, ..., admin: {} } O { ..., personal_medico: {} }
 
-  // 2. ¡La magia! Extraer el objeto de usuario sin importar la clave
+  // 2. Extraer el objeto de usuario sin importar la clave
   const userObject = loginData.admin || loginData.personal_medico;
 
   if (!userObject) {
@@ -103,19 +103,14 @@ const normalizeLoginResponse = (response) => {
 }
 
 // === API DE AUTENTICACIÓN UNIFICADA ===
-
 /**
 * Función de login "inteligente" y unificada.
-*
-* 🔽 ESTA ES LA FUNCIÓN ACTUALIZADA 🔽
-* * (Solo le quitamos el parámetro 'role' a normalizeLoginResponse)
 */
 export const loginApi = async (correo, clave) => {
   // 1. Intentar como Personal Médico (el caso más común)
   try {
     console.log('🏥 Intentando login como personal médico...')
     const res = await apiClient.post('/personal_medico/login', { correo, clave })
-    // Normalizamos la respuesta (ya no pasamos el rol)
     return normalizeLoginResponse(res)
 
   } catch (medicoError) {
@@ -151,7 +146,7 @@ export const loginApi = async (correo, clave) => {
   }
 }
 /**
- * Funciones de registro (ahora súper limpias)
+ * Funciones de registro (ahora súper limpias) -> Bajito ese que lo programó
  * El interceptor se encarga del 'catch'
  */
 export const registerPersonalMedicoApi = async (userData) => {
