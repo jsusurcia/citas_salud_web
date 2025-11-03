@@ -29,14 +29,6 @@ const handleGenerarReporte = () => {
       <input type="date" id="fecha-fin" v-model="filtros.fechaFin" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5">
     </div>
 
-    <div class="flex items-center gap-2">
-      <select v-model="filtros.tipoReporte" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5">
-        <option value="resumen_citas">Resumen de citas</option>
-        <option value="citas_por_medico">Citas por médico</option>
-        <option value="citas_por_especialidad">Citas por especialidad</option>
-      </select>
-    </div>
-
     <button @click="handleGenerarReporte" class="px-5 py-2.5 text-sm font-medium text-white bg-cyan-600 rounded-lg hover:bg-cyan-700 focus:ring-4 focus:outline-none focus:ring-cyan-300">
       Generar informe
     </button>

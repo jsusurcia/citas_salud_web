@@ -18,11 +18,18 @@ export const getReporteCitasPorEspecialidadApi = async (filtros) => {
     
     const response = res.data
 
-    // Maneja la respuesta ItemListResponse que definiste en FastAPI
+    // 1. Revisa si es formato ItemListResponse
     if (response.status === 'success' && Array.isArray(response.data)) {
-      console.log('✅ Reporte (especialidad) obtenido:', response.data.length, 'registros')
+      console.log('✅ Reporte (especialidad) [ItemListResponse]:', response.data.length, 'registros')
       return response.data
-    } else {
+    } 
+    // 2. Revisa si es un array directo (el fallback)
+    else if (Array.isArray(response)) {
+      console.log('⚠️ Reporte (especialidad) [Array Directo]:', response.length, 'registros')
+      return response
+    }
+    // 3. Si no es ninguno, es un error
+    else {
       console.error('❌ Formato de respuesta inesperado (especialidad):', response)
       throw { detail: 'Formato de respuesta inesperado del servidor' }
     }
@@ -50,11 +57,18 @@ export const getReporteCitasDiariasApi = async (filtros) => {
     
     const response = res.data
 
-    // Maneja la respuesta ItemListResponse
+    // 1. Revisa si es formato ItemListResponse
     if (response.status === 'success' && Array.isArray(response.data)) {
-      console.log('✅ Reporte (diario) obtenido:', response.data.length, 'registros')
+      console.log('✅ Reporte (diario) [ItemListResponse]:', response.data.length, 'registros')
       return response.data
-    } else {
+    }
+    // 2. Revisa si es un array directo (el fallback)
+    else if (Array.isArray(response)) {
+      console.log('⚠️ Reporte (diario) [Array Directo]:', response.length, 'registros')
+      return response
+    }
+    // 3. Si no es ninguno, es un error
+    else {
       console.error('❌ Formato de respuesta inesperado (diario):', response)
       throw { detail: 'Formato de respuesta inesperado del servidor' }
     }
@@ -65,3 +79,4 @@ export const getReporteCitasDiariasApi = async (filtros) => {
     throw error.response?.data || { detail: error.message || 'Error al conectar' }
   }
 }
+
