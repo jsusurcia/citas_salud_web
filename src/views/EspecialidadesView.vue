@@ -5,7 +5,7 @@ import ModalForm from '../components/ModalForm.vue'
 import ConfirmModalComponent from '../components/ConfirmModalComponent.vue'
 import ButtonComponent from '../components/ButtonComponent.vue'
 import EspecialidadCardComponent from '../components/EspecialidadCardComponent.vue'
-import { getEspecialidadesApi, createEspecialidadApi } from '../api/especialidades'
+import { getEspecialidadesApi, createEspecialidadApi, updateEspecialidadApi, updateEstadoEspecialidadApi } from '../api/especialidades'
 import LoaderComponent from '../components/LoaderComponent.vue'
 import { useAuthStore } from '../stores/authStore'
 
@@ -34,11 +34,12 @@ const loadEspecialidades = async () => {
     const data = await getEspecialidadesApi()
     
     // Mapear los datos del backend al formato esperado por el componente
+    // IMPORTANTE: Mapeamos explícitamente el estado para mostrar tanto true como false
     especialidades.value = data.map(esp => ({
       id: esp.id_especialidad || esp.id,
       nombre: esp.nombre,
       descripcion: esp.descripcion || '',
-      habilitada: esp.estado !== false // El backend usa 'estado', mapeamos a 'habilitada'
+      habilitada: esp.estado === true // Mapeo explícito: true si estado es true, false si es false o null/undefined
     }))
     
     console.log('✅ Especialidades cargadas:', especialidades.value.length)
@@ -113,7 +114,7 @@ const handleCreate = async () => {
       id: nuevaEspecialidad.id_especialidad || nuevaEspecialidad.id,
       nombre: nuevaEspecialidad.nombre,
       descripcion: nuevaEspecialidad.descripcion || '',
-      habilitada: nuevaEspecialidad.estado !== false
+      habilitada: nuevaEspecialidad.estado === true // Mapeo explícito para mostrar estado correcto
     }
     
     // Cerrar el modal
@@ -155,34 +156,153 @@ const openEditModal = (especialidad) => {
 };
 
 // Guardar edición
-const handleEdit = () => {
-  if (!selectedEspecialidad.value) return
-  const index = especialidades.value.findIndex(e => e.id === selectedEspecialidad.value.id)
-  if (index !== -1) {
-    especialidades.value[index] = {
-      ...especialidades.value[index],
-      nombre: form.value.nombre,
-      descripcion: form.value.descripcion
-    }
-  }
-  closeModal()
-};
+const handleEdit = async () => {
+  
+  if(!selectedEspecialidad.value) return
 
-// Abrir modal de confirmación para deshabilitar
+  if(!form.value.nombre.trim()){
+    errorMessage.value = 'El nombre es requerido'
+    return
+  }
+
+  //Verificar que el usuario tenga permisos de admin
+  const user = authStore.user
+  if(!user || user.rol !== 'admin'){
+    errorMessage.value = 'Solo los administradores pueden editar especialidades'
+    return
+  }
+
+  creating.value = true
+  errorMessage.value = ''
+
+  try{
+    console.log('✅ Actualizando especialidad...', { especialidadId: selectedEspecialidad.value.id, especialidadData: form.value })
+    console.log('👤 Usuario actual:', user)
+
+    //Preparar los datos según el formato esperado por el backend
+    const especialidadData = {
+      nombre: form.value.nombre.trim(),
+      descripcion: form.value.descripcion?.trim() || ''
+    }
+
+    //Llamar a la API del backend
+    const especialidadActualizada = await updateEspecialidadApi(selectedEspecialidad.value.id, especialidadData)
+
+    console.log('✅ Especialidad actualizada:', especialidadActualizada)
+
+    //Mapear la respuesta del backend al formato esperado
+    const especialidadMapeada = {
+      id: especialidadActualizada.id_especialidad || especialidadActualizada.id,
+      nombre: especialidadActualizada.nombre,
+      descripcion: especialidadActualizada.descripcion || '',
+      habilitada: especialidadActualizada.estado === true // Mapeo explícito para mostrar estado correcto
+    }
+
+    //Cerrar el modal
+    closeModal()
+
+    //Limpiar mensajes de error
+    errorMessage.value = ''
+
+    //Recargar todas las especialidades para asegurar consistencia con el backend
+    await loadEspecialidades()
+
+    console.log('✅ Especialidad actualizada exitosamente')
+  } catch (error) {
+    console.error('❌ Error al actualizar especialidad:', error)
+    
+    //Mostrar mensaje de error más específico
+    let errorMsg = 'Error al actualizar la especialidad'
+    
+    if (error.response?.status === 404) {
+      errorMsg = 'Especialidad no encontrada'
+    } else if (error.response?.status === 403) {
+      errorMsg = 'No tienes permisos para actualizar especialidades. Solo los administradores pueden realizar esta acción.'
+    } else if (error.detail) {
+      errorMsg = error.detail
+    } else if (error.message) {
+      errorMsg = error.message
+    }
+    errorMessage.value = errorMsg
+    console.error('❌ Error al actualizar especialidad:', errorMsg)
+  } finally {
+    creating.value = false
+  }
+}
+
+// Abrir modal de confirmación para cambiar estado
 const openConfirmModal = (especialidad) => {
   selectedEspecialidad.value = especialidad
   // Decidimos qué modal abrir basado en el estado actual
   activeModal.value = especialidad.habilitada ? 'disableConfirm' : 'enableConfirm'
-};
+  errorMessage.value = '' // Limpiar errores previos
+}
 
-const handleToggleStatus = () => {
+// Cambiar estado de especialidad (habilitar/deshabilitar)
+const handleToggleStatus = async () => {
   if (!selectedEspecialidad.value) return
-  const index = especialidades.value.findIndex(e => e.id === selectedEspecialidad.value.id)
-  if (index !== -1) {
-    // Invertimos el estado
-    especialidades.value[index].habilitada = !especialidades.value[index].habilitada
+  
+  // Verificar que el usuario tenga permisos de admin
+  const user = authStore.user
+  if (!user || user.rol !== 'admin') {
+    errorMessage.value = 'Solo los administradores pueden cambiar el estado de especialidades'
+    closeModal()
+    return
   }
-  closeModal()
+  
+  creating.value = true
+  errorMessage.value = ''
+  
+  try {
+    const especialidadId = selectedEspecialidad.value.id
+    const nuevoEstado = !selectedEspecialidad.value.habilitada // Invertir el estado actual
+    
+    console.log('🔄 Cambiando estado de especialidad...', { 
+      especialidadId, 
+      estadoActual: selectedEspecialidad.value.habilitada,
+      nuevoEstado 
+    })
+    
+    // Llamar a la API del backend
+    // El backend espera PATCH /especialidades/{id}/estado con { estado: boolean }
+    const especialidadActualizada = await updateEstadoEspecialidadApi(
+      especialidadId,
+      nuevoEstado
+    )
+    
+    console.log('✅ Estado actualizado:', especialidadActualizada)
+    
+    // Cerrar el modal
+    closeModal()
+    
+    // Limpiar mensajes de error
+    errorMessage.value = ''
+    
+    // Recargar todas las especialidades para asegurar consistencia con el backend
+    await loadEspecialidades()
+    
+    console.log('✅ Estado de especialidad cambiado exitosamente')
+    
+  } catch (error) {
+    console.error('❌ Error al cambiar estado de especialidad:', error)
+    
+    // Mostrar mensaje de error más específico
+    let errorMsg = 'Error al cambiar el estado de la especialidad'
+    
+    if (error.response?.status === 404) {
+      errorMsg = 'Especialidad no encontrada'
+    } else if (error.response?.status === 403) {
+      errorMsg = 'No tienes permisos para cambiar el estado. Solo los administradores pueden realizar esta acción.'
+    } else if (error.detail) {
+      errorMsg = error.detail
+    } else if (error.message) {
+      errorMsg = error.message
+    }
+    
+    errorMessage.value = errorMsg
+  } finally {
+    creating.value = false
+  }
 }
 </script>
 
@@ -249,7 +369,8 @@ const handleToggleStatus = () => {
       title="Editar especialidad" 
       :isOpen="activeModal === 'edit'" 
       @close="closeModal"
-      @submit="handleEdit">
+      @submit="handleEdit"
+      :isLoading="creating">
       <div>
         <label for="edit-nombre" class="block mb-2 text-sm font-medium text-gray-900">Nombre</label>
         <input id="edit-nombre" v-model="form.nombre" type="text" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-green-500 focus:border-green-500 block w-full p-2.5" required />
@@ -265,6 +386,7 @@ const handleToggleStatus = () => {
       type="danger"
       title="¿Deshabilitar esta especialidad?" 
       description="La especialidad dejará de estar disponible para asignaciones. Podrás volver a habilitarla más adelante."
+      confirmLabel="Sí, deshabilitar"
       @confirm="handleToggleStatus" 
       @close="closeModal" />
 
@@ -273,6 +395,7 @@ const handleToggleStatus = () => {
       type="success"
       title="¿Habilitar esta especialidad?" 
       description="La especialidad volverá a estar disponible para asignaciones y uso activo en el sistema."
+      confirmLabel="Sí, habilitar"
       @confirm="handleToggleStatus" 
       @close="closeModal" />
 

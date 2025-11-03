@@ -59,19 +59,27 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
+import { useRouter } from 'vue-router' // <-- 1. Se importa el router
 import LayoutComponent from '../components/LayoutComponent.vue'
 import ButtonComponent from '../components/ButtonComponent.vue'
 import LoaderComponent from '../components/LoaderComponent.vue'
+
+const router = useRouter() // <-- 2. Se prepara el router para ser usado
 
 const reportes = ref([])
 const loading = ref(false)
 const errorMessage = ref('')
 
-// Función para ver reportes
+// 3. Esta función ahora es diferente
 const handleVerReporte = (tipo) => {
-    console.log(`📊 Ver reporte de: ${tipo}`)
-    // Aquí puedes implementar la lógica para mostrar el reporte específico
-    alert(`Reporte de ${tipo} - Funcionalidad en desarrollo`)
+    if (tipo === 'citas') {
+        // Te redirige a la página de gráficos
+        router.push('/admin/reportes/generador') 
+    } else {
+        // Los otros botones siguen mostrando una alerta
+        console.log(`📊 Ver reporte de: ${tipo}`)
+        alert(`Reporte de ${tipo} - Funcionalidad en desarrollo`)
+    }
 }
 
 // Cargar reportes al montar el componente

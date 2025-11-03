@@ -1,7 +1,8 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/authStore'
+import ConfirmModalComponent from './ConfirmModalComponent.vue'
 
 // Importaciones para FontAwesome
 import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome'
@@ -12,6 +13,9 @@ library.add(faBars, faArrowRightFromBracket, faBell)
 
 const router = useRouter()
 const authStore = useAuthStore()
+
+// Estado del modal de confirmación
+const showLogoutModal = ref(false)
 
 // Obtener usuario del store
 const user = computed(() => {
@@ -27,12 +31,23 @@ const user = computed(() => {
   }
 })
 
-// Función para cerrar sesión
+// Función para abrir modal de confirmación
 const handleLogout = () => {
+  showLogoutModal.value = true
+}
+
+// Función para cerrar el modal
+const closeLogoutModal = () => {
+  showLogoutModal.value = false
+}
+
+// Función para confirmar y cerrar sesión
+const confirmLogout = () => {
   console.log('🚪 Cerrando sesión...')
   authStore.logout()
   router.push('/auth')
   console.log('✅ Sesión cerrada')
+  showLogoutModal.value = false
 }
 </script>
 
@@ -104,6 +119,16 @@ const handleLogout = () => {
             </div>
         </div>
     </nav>
+
+    <!-- Modal de confirmación para cerrar sesión -->
+    <ConfirmModalComponent 
+      :isOpen="showLogoutModal" 
+      type="warning"
+      title="¿Cerrar sesión?" 
+      description="¿Estás seguro de que deseas cerrar sesión? Tendrás que iniciar sesión nuevamente para acceder al sistema."
+      confirmLabel="Sí, cerrar sesión"
+      @confirm="confirmLogout" 
+      @close="closeLogoutModal" />
 </template>
 
 

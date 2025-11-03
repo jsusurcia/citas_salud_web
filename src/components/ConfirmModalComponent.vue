@@ -25,6 +25,10 @@ const props = defineProps({
   description: {
     type: String,
     required: true
+  },
+  confirmLabel: {
+    type: String,
+    default: 'Confirmar'
   }
 })
 
@@ -81,7 +85,7 @@ const confirmButtonClass = computed(() => buttonColors[props.type])
             <!-- Botones -->
             <div class="flex justify-center gap-3 w-full">
               <ButtonComponent type="button" variant="secondary" size="large" label="Cancelar" @click="closeModal" />
-              <ButtonComponent type="submit" :variant="type" size="large" label="Sí, deshabilitar"
+              <ButtonComponent type="submit" :variant="type" size="large" :label="confirmLabel"
                 @click="confirmModal" />
             </div>
           </div>
