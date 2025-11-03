@@ -58,7 +58,7 @@ const router = createRouter({
                 const user = authStore.user
                 
                 if (user && user.rol === 'personal_medico') {
-                    return '/disponibilidad_medico'
+                    return '/personal/disponibilidad_personal_med'
                 } else if (user && user.rol === 'admin') {
                     return '/admin/validacion'
                 } else {
@@ -82,17 +82,17 @@ const router = createRouter({
             component: ValidacionPersonalView
         },
         {
-            path: "/personal_medico/disponibilidad",
+            path: "/personal_med/disponibilidad",
             "name": "disponibilidad_medico",
             component: DoctorsAvailabilityView
         },
         {
-            path: "/personal_medico/gestion_citas",
+            path: "/personal_med/citas",
             "name": "citas_medico",
             component: DoctorsAppointmentView
         },
         {
-            path: "/personal_medico/chats",
+            path: "/personal_med/chats",
             "name": "chat_medico",
             component: ChatView
         },
@@ -122,7 +122,7 @@ router.beforeEach((to, from, next) => {
         if (authStore.isAuthenticated) {
             const user = authStore.user
             if (user && user.rol === 'personal_medico') {
-                return next('/disponibilidad_medico')
+                return next('/personal_med/disponibilidad')
             } else if (user && user.rol === 'admin') {
                 return next('/admin/validacion')
             }

@@ -26,19 +26,19 @@ export function useMenuItems(userRole) {
       id: 1, 
       label: 'Horarios', 
       icon: 'clock', 
-      route: '/disponibilidad_medico' 
+      route: '/personal_med/disponibilidad' 
     },
     { 
       id: 2, 
       label: 'Citas', 
       icon: 'calendar', 
-      route: '/citas_medico' 
+      route: '/personal_med/citas' 
     },
     { 
       id: 3, 
       label: 'Chats', 
       icon: 'comment', 
-      route: '/chat_medico' 
+      route: '/personal_med/chats' 
     }
   ]
   
