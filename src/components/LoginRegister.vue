@@ -196,7 +196,7 @@ const handleLogin = async () => {
     // Redirigir según el rol del usuario
     if (user && user.rol === 'personal_medico') {
       console.log('🏥 Redirigiendo a vista de personal médico...')
-      router.push('/disponibilidad_medico')
+      router.push('/personal_med/disponibilidad')
     } else if (user && user.rol === 'admin') {
       console.log('👨‍💼 Redirigiendo a vista de administrador...')
       router.push('/admin/validacion')
@@ -334,11 +334,11 @@ const handleForgotPassword = () => {
       <!-- Login Form -->
       <div class="form-box login">
         <form @submit.prevent="handleLogin">
-          <h1>Iniciar Sesión</h1>
+          <h1>Iniciar sesión</h1>
           <p>Bienvenido de nuevo. Inicia sesión en tu cuenta</p>
           
           <div class="input-box">
-            <label for="login-correo">Correo Electrónico</label>
+            <label for="login-correo">Correo electrónico</label>
             <input 
               id="login-correo"
               v-model="loginForm.correo"
@@ -370,7 +370,7 @@ const handleForgotPassword = () => {
           
           <button type="submit" class="btn" :disabled="loading">
             <span v-if="loading">Cargando...</span>
-            <span v-else>Iniciar Sesión</span>
+            <span v-else>Iniciar sesión</span>
           </button>
         </form>
       </div>
