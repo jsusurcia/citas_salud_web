@@ -18,10 +18,9 @@ register()
 const chatStore = useChatStore()
 const authStore = useAuthStore()
 
-// --- 2. Estado del Componente ---
+// --- 2. Estado del componente ---
 
-// ID del usuario actual (viene de tu login de FastAPI)
-// Ajusta 'authStore.user.id' al nombre correcto en tu authStore
+// ID del usuario actual -> viene del login de FastAPI
 const currentUserId = computed(() => authStore.user?.id || 'id_desconocido')
 
 // Como dijiste que es Paciente <-> Médico, podemos definir una sala estática.

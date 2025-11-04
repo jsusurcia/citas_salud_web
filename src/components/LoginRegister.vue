@@ -1,5 +1,5 @@
 <script setup>
-import { ref, reactive, nextTick } from 'vue'
+import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/authStore'
 
@@ -100,8 +100,6 @@ const handleRegister = async () => {
   errorMessage.value = ''
 
   try {
-    // No necesitas dynamic import
-
     const userData = {
       nombres: registerForm.nombreCompleto.split(' ')[0] || registerForm.nombreCompleto,
       apellido_paterno: registerForm.nombreCompleto.split(' ')[1] || '',
@@ -111,8 +109,6 @@ const handleRegister = async () => {
       id_especialidad: parseInt(registerForm.especialidad) || 1,
     }
 
-    // 'registerPersonalMedicoApi' está en 'api/auth.js'
-    // El interceptor manejará los errores de FastAPI
     const response = await registerPersonalMedicoApi(userData)
 
     // El backend devuelve { status: "success", message: "..." }
@@ -120,7 +116,6 @@ const handleRegister = async () => {
     showLogin()
 
   } catch (error) {
-    // El interceptor ya parseó el error
     console.error('Error en registro:', error.message)
     errorMessage.value = error.message
 
@@ -136,130 +131,162 @@ const handleForgotPassword = () => {
 </script>
 
 <template>
-  <div class="min-h-screen flex justify-center items-center bg-gradient-to-r from-[#e2e2e2] to-[#c9ffea]">
+  <!-- 1. Fondo y fuente principal aplicados con Tailwind -->
+  <div class="min-h-screen flex justify-center items-center bg-gradient-to-r from-[#e2e2e2] to-[#c9ffea] font-exo">
+    
+    <!-- 2. Contenedor principal de la animación -->
     <div :class="['container-box', { active: isActive }]">
-      <!-- Login Form -->
+      
+      <!-- === FORMULARIO DE LOGIN === -->
       <div class="form-box login">
-        <form @submit.prevent="handleLogin">
-          <h1>Iniciar sesión</h1>
-          <p>Bienvenido de nuevo. Inicia sesión en tu cuenta</p>
+        <form @submit.prevent="handleLogin" class="w-full">
+          
+          <!-- 3. Tipografía migrada a Tailwind -->
+          <h1 class="font-inter font-bold text-xl mb-2.5">Iniciar sesión</h1>
+          <p class="text-sm text-gray-700 mb-4">Bienvenido de nuevo. Inicia sesión en tu cuenta</p>
 
-          <div class="input-box">
-            <label for="login-correo">Correo electrónico</label>
-            <input id="login-correo" v-model="loginForm.correo" type="email" placeholder="tu.correo@ejemplo.com"
-              required>
+          <!-- 4. Input-box migrado a Tailwind -->
+          <div class="mb-5 text-left">
+            <label for="login-correo" class="block mb-2 text-sm font-semibold text-gray-600">Correo electrónico</label>
+            <input id="login-correo" v-model="loginForm.correo" type="email" placeholder="tu.correo@ejemplo.com" required
+                   class="w-full px-5 py-2 bg-gray-100 rounded-lg border-none outline-none text-sm text-gray-800 font-medium placeholder-gray-400 focus:ring-2 focus:ring-[#10A697]">
           </div>
 
-          <div class="input-box">
-            <label for="login-contrasena">Contraseña</label>
-            <input id="login-contrasena" v-model="loginForm.contrasena" type="password" placeholder="******" required>
+          <!-- 5. Input-box migrado a Tailwind -->
+          <div class="mb-5 text-left">
+            <label for="login-contrasena" class="block mb-2 text-sm font-semibold text-gray-600">Contraseña</label>
+            <input id="login-contrasena" v-model="loginForm.contrasena" type="password" placeholder="******" required
+                   class="w-full px-5 py-2 bg-gray-100 rounded-lg border-none outline-none text-sm text-gray-800 font-medium placeholder-gray-400 focus:ring-2 focus:ring-[#10A697]">
           </div>
 
-          <div class="forgot-link">
-            <a href="#" @click.prevent="handleForgotPassword">Olvidé mi contraseña</a>
+          <!-- 6. Forgot-link migrado a Tailwind -->
+          <div class="text-right -mt-2.5 mb-4">
+            <a href="#" @click.prevent="handleForgotPassword" class="text-sm text-[#10A697] hover:underline">Olvidé mi contraseña</a>
           </div>
 
-          <!-- Mensaje de error -->
-          <div v-if="errorMessage" class="error-message">
+          <!-- 7. Error-message migrado a Tailwind -->
+          <div v-if="errorMessage" 
+               class="my-2.5 p-3 bg-red-100 text-red-700 border border-red-300 rounded-md text-sm text-center break-words z-10 relative">
             {{ errorMessage }}
           </div>
 
-          <button type="submit" class="btn" :disabled="loading">
+          <!-- 8. Botón migrado a Tailwind -->
+          <button type="submit" :disabled="loading"
+                  class="w-full h-10 bg-[#10A697] text-white rounded-lg shadow-sm text-base font-semibold transition-opacity duration-300 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed">
             <span v-if="loading">Cargando...</span>
             <span v-else>Iniciar sesión</span>
           </button>
         </form>
       </div>
 
-      <!-- Register Form -->
+      <!-- === FORMULARIO DE REGISTRO === -->
       <div class="form-box register">
-        <form @submit.prevent="handleRegister">
-          <h1>Crear una cuenta</h1>
-          <p>Ingresa tus datos para registrarte en el portal</p>
+        <form @submit.prevent="handleRegister" class="w-full">
+          <h1 class="font-inter font-bold text-xl mb-2.5">Crear una cuenta</h1>
+          <p class="text-sm text-gray-700 mb-4">Ingresa tus datos para registrarte</p>
 
-          <div class="input-box">
-            <label for="nombre-completo">Nombre completo</label>
-            <input id="nombre-completo" v-model="registerForm.nombreCompleto" type="text"
-              placeholder="Tu nombre completo" required>
+          <!-- Input nombre completo -->
+          <div class="mb-5 text-left">
+            <label for="nombre-completo" class="block mb-2 text-sm font-semibold text-gray-600">Nombre completo</label>
+            <input id="nombre-completo" v-model="registerForm.nombreCompleto" type="text" placeholder="Tu nombre completo" required
+                   class="w-full px-5 py-2 bg-gray-100 rounded-lg border-none outline-none text-sm text-gray-800 font-medium placeholder-gray-400 focus:ring-2 focus:ring-[#10A697]">
           </div>
 
-          <div class="input-box">
-            <label for="register-correo">Correo electrónico</label>
-            <input id="register-correo" v-model="registerForm.correo" type="email" placeholder="tu.email@ejemplo.com"
-              required>
+          <!-- Input correo -->
+          <div class="mb-5 text-left">
+            <label for="register-correo" class="block mb-2 text-sm font-semibold text-gray-600">Correo electrónico</label>
+            <input id="register-correo" v-model="registerForm.correo" type="email" placeholder="tu.email@ejemplo.com" required
+                   class="w-full px-5 py-2 bg-gray-100 rounded-lg border-none outline-none text-sm text-gray-800 font-medium placeholder-gray-400 focus:ring-2 focus:ring-[#10A697]">
           </div>
 
-          <div class="input-box">
-            <label for="register-contrasena">Contraseña</label>
-            <input id="register-contrasena" v-model="registerForm.contrasena" type="password"
-              placeholder="Crea una contraseña" required>
+          <!-- Input contraseña -->
+          <div class="mb-5 text-left">
+            <label for="register-contrasena" class="block mb-2 text-sm font-semibold text-gray-600">Contraseña</label>
+            <input id="register-contrasena" v-model="registerForm.contrasena" type="password" placeholder="Crea una contraseña" required
+                   class="w-full px-5 py-2 bg-gray-100 rounded-lg border-none outline-none text-sm text-gray-800 font-medium placeholder-gray-400 focus:ring-2 focus:ring-[#10A697]">
+          </div>
+          
+          <!-- Input confirmar contraseña -->
+          <div class="mb-5 text-left">
+            <label for="contrasena-confirmar" class="block mb-2 text-sm font-semibold text-gray-600">Confirmar contraseña</label>
+            <input id="contrasena-confirmar" v-model="registerForm.contrasenaConfirmar" type="password" placeholder="Confirma tu contraseña" required
+                   class="w-full px-5 py-2 bg-gray-100 rounded-lg border-none outline-none text-sm text-gray-800 font-medium placeholder-gray-400 focus:ring-2 focus:ring-[#10A697]">
           </div>
 
-          <div class="input-box">
-            <label for="contrasena-confirmar">Confirmar contraseña</label>
-            <input id="contrasena-confirmar" v-model="registerForm.contrasenaConfirmar" type="password"
-              placeholder="Confirma tu contraseña" required>
-          </div>
-
-          <div class="input-box">
-            <label for="especialidad">Especialidad</label>
+          <!-- 9. Select (Enfoque Híbrido) -->
+          <!-- Usamos .input-box aquí para re-utilizar el estilo del <select> del CSS original -->
+          <div class="input-box text-left">
+            <label for="especialidad" class="block mb-2 text-sm font-semibold text-gray-600">Especialidad</label>
             <select id="especialidad" v-model="registerForm.especialidad" required>
               <option value="" disabled>Seleccione su especialidad</option>
               <option value="1">Medicina general</option>
               <option value="2">Pediatría</option>
               <option value="3">Dermatología</option>
-              <!-- Ajusta los valores según los IDs reales de tu base de datos -->
             </select>
           </div>
 
           <!-- Mensaje de error -->
-          <div v-if="errorMessage" class="error-message">
+          <div v-if="errorMessage" 
+               class="my-2.5 p-3 bg-red-100 text-red-700 border border-red-300 rounded-md text-sm text-center break-words z-10 relative">
             {{ errorMessage }}
           </div>
-
-          <button type="submit" class="btn" :disabled="loading">
+          
+          <!-- Botón de registro -->
+          <button type="submit" :disabled="loading"
+                  class="w-full mt-2 h-10 bg-[#10A697] text-white rounded-lg shadow-sm text-base font-semibold transition-opacity duration-300 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed">
             <span v-if="loading">Cargando...</span>
             <span v-else>Registrarse</span>
           </button>
         </form>
       </div>
 
-      <!-- Toggle Box -->
+      <!-- === PANELES DESLIZANTES (ANIMACIÓN) === -->
       <div class="toggle-box">
-        <!-- Panel Izquierdo -->
+        <!-- Panel Izquierdo (se muestra con Login) -->
         <div class="toggle-panel toggle-left">
-          <img src="/img/citas_salud_logo.png" alt="citas_salud_logo" class="logo">
-          <h1>¡Bienvenido!</h1>
-          <p>
+          <img src="/img/citas_salud_logo.png" alt="citas_salud_logo" class="w-44 mb-5"> <!-- 10. Logo migrado -->
+          <h1 class="font-adlam font-bold text-xl mb-2.5">¡Bienvenido!</h1> <!-- 11. Tipografía migrada -->
+          <p class="text-sm mb-5"> <!-- 12. Párrafo migrado -->
             ¿Primera vez con nosotros? <br>
             <b>¡Regístrate ya!</b>
           </p>
-          <button class="btn register-btn" @click="showRegister">Registrar</button>
+          <!-- 13. Botón de Toggle migrado (variante) -->
+          <button @click="showRegister"
+                  class="w-40 h-12 bg-transparent border-2 border-white rounded-lg shadow-none text-base font-semibold text-white transition-opacity duration-300 cursor-pointer">
+            Registrar
+          </button>
         </div>
 
-        <!-- Panel Derecho -->
+        <!-- Panel Derecho (se muestra con Registro) -->
         <div class="toggle-panel toggle-right">
-          <img src="/img/citas_salud_logo.png" alt="citas_salud_logo" class="logo">
-          <h1>¡Hola de nuevo!</h1>
-          <p>
+          <img src="/img/citas_salud_logo.png" alt="citas_salud_logo" class="w-44 mb-5">
+          <h1 class="font-adlam font-bold text-xl mb-2.5">¡Hola de nuevo!</h1>
+          <p class="text-sm mb-5">
             ¿Ya tienes una cuenta? <br>
             <b>¡Inicia sesión!</b>
           </p>
-          <button class="btn login-btn" @click="showLogin">Iniciar Sesión</button>
+          <button @click="showLogin"
+                  class="w-40 h-12 bg-transparent border-2 border-white rounded-lg shadow-none text-base font-semibold text-white transition-opacity duration-300 cursor-pointer">
+            Iniciar sesión
+          </button>
         </div>
       </div>
     </div>
   </div>
 </template>
 
+
 <style scoped>
+/* --- FUENTES --- */
 @import url('https://fonts.googleapis.com/css2?family=ADLaM+Display&family=Exo:ital,wght@0,100..900;1,100..900&family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=SUSE+Mono:ital,wght@0,100..800;1,100..800&display=swap');
 
-* {
-  font-family: "Exo", sans-serif;
-  box-sizing: border-box;
-}
+/* Clases de utilidad de fuentes para el template */
+.font-exo { font-family: "Exo", sans-serif; }
+.font-adlam { font-family: "ADLaM Display", sans-serif; }
+.font-inter { font-family: "Inter", sans-serif; }
 
+
+/* --- CSS DE ANIMACIÓN --- */
 .container-box {
   position: relative;
   width: 850px;
@@ -269,22 +296,6 @@ const handleForgotPassword = () => {
   border-radius: 30px;
   box-shadow: 0 0 30px rgba(0, 0, 0, 0.2);
   overflow: hidden;
-}
-
-.container-box h1 {
-  font-family: "Inter", sans-serif;
-  font-weight: bold;
-  font-size: 20px;
-  margin: -10px 0;
-}
-
-.container-box p {
-  font-size: 14px;
-  margin: 15px 0;
-}
-
-form {
-  width: 100%;
 }
 
 .form-box {
@@ -305,111 +316,17 @@ form {
 .container-box.active .form-box {
   right: 50%;
 }
-
 .form-box.register {
   visibility: hidden;
 }
-
 .container-box.active .form-box.register {
   visibility: visible;
 }
-
 .form-box.login {
   visibility: visible;
 }
-
 .container-box.active .form-box.login {
   right: 50%;
-}
-
-.input-box {
-  position: relative;
-  margin: 20px 0;
-}
-
-.input-box input,
-.input-box select {
-  width: 100%;
-  padding: 8px 50px 8px 20px;
-  background: #eee;
-  border-radius: 8px;
-  border: none;
-  outline: none;
-  font-size: 13px;
-  color: #333;
-  font-weight: 500;
-}
-
-.input-box input::placeholder {
-  color: #888;
-  font-weight: 400;
-}
-
-.input-box label {
-  font-size: 14px;
-  font-weight: 600;
-  color: #555;
-  display: block;
-  margin-bottom: 8px;
-  text-align: start;
-}
-
-.input-box select {
-  appearance: none;
-  -webkit-appearance: none;
-  -moz-appearance: none;
-  background-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNiIgaGVpZ2h0PSIxNiIgdmlld0JveD0iMCAwIDI0IDI0Ij4KICA8cGF0aCBkPSJNMTkgOS41bC03IDctNy03eiIvPgo8L3N2Zz4=');
-  background-repeat: no-repeat;
-  background-position: right 15px center;
-  background-size: 12px;
-  padding-right: 40px;
-  cursor: pointer;
-}
-
-.forgot-link {
-  margin: -15px 0 15px;
-  text-align: end;
-}
-
-.forgot-link a {
-  font-size: 14.5px;
-  color: #10A697;
-}
-
-.btn {
-  width: 100%;
-  height: 38px;
-  background: #10A697;
-  border-radius: 8px;
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-  border: none;
-  outline: none;
-  cursor: pointer;
-  font-size: 16px;
-  color: #fff;
-  font-weight: 600;
-  transition: opacity 0.3s;
-}
-
-.btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.error-message {
-  margin: 10px 0;
-  padding: 12px;
-  background: #fee;
-  color: #c33;
-  border-radius: 6px;
-  font-size: 13px;
-  text-align: center;
-  border: 1px solid #fcc;
-  display: block;
-  min-height: 20px;
-  word-wrap: break-word;
-  z-index: 10;
-  position: relative;
 }
 
 .toggle-box {
@@ -452,40 +369,44 @@ form {
   left: 0;
   transition-delay: 1.2s;
 }
-
 .container-box.active .toggle-panel.toggle-left {
   left: -50%;
   transition-delay: 0.6s;
 }
-
 .toggle-panel.toggle-right {
   right: -50%;
   transition-delay: 0.6s;
 }
-
 .container-box.active .toggle-panel.toggle-right {
   right: 0;
   transition-delay: 1.2s;
 }
 
-.toggle-panel p {
-  margin-bottom: 20px;
+
+/* Mantenemos el estilo del <select> ya que es complejo y 
+   lo re-utilizamos con la clase .input-box */
+.input-box {
+  position: relative;
+  margin: 20px 0;
 }
 
-.toggle-panel .btn {
-  width: 160px;
-  height: 46px;
-  background: transparent;
-  border: 2px solid #fff;
-  box-shadow: none;
-}
-
-.logo {
-  width: 180px;
-  margin-bottom: 20px;
-}
-
-.toggle-panel h1 {
-  font-family: "ADLaM Display", sans-serif;
+.input-box select {
+  width: 100%;
+  padding: 8px 50px 8px 20px;
+  background: #eee;
+  border-radius: 8px;
+  border: none;
+  outline: none;
+  font-size: 13px;
+  color: #333;
+  font-weight: 500;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNiIgaGVpZ2h0PSIxNiIgdmlld0JveD0iMCAwIDI0IDI0Ij4KICA8cGF0aCBkPSJNMTkgOS41bC03IDctNy03eiIvPgo8L3N2Zz4=');
+  background-repeat: no-repeat;
+  background-position: right 15px center;
+  background-size: 12px;
+  cursor: pointer;
 }
 </style>
