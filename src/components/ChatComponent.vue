@@ -1,17 +1,22 @@
 <template>
   <div class="chat-container">
-    <vue-advanced-chat :current-user-id="currentUserId" :rooms="JSON.stringify(chatRooms)"
-      :messages="JSON.stringify(formattedMessages)" :room-actions="JSON.stringify(roomActions)"
-      :messages-loaded="messagesLoaded" @send-message="handleSendMessage" />
+    <vue-advanced-chat
+      :current-user-id="currentUserId"
+      :rooms="JSON.stringify(computedRooms)"
+      :messages="JSON.stringify(computedMessages)"
+      :messages-loaded="messagesLoaded"
+      @send-message="handleSendMessage"
+      @fetch-messages="handleRoomChange"
+    />
   </div>
 </template>
 
 <script setup>
-import { register } from 'vue-advanced-chat'
-import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { useChatStore } from '../stores/chat.js'
-import { useAuthStore } from '../stores/authStore'
+import { computed, onMounted, onUnmounted } from 'vue';
+import { useChatStore } from '../stores/chatStore';
+import { useAuthStore } from '../stores/authStore';
 
+import { register } from 'vue-advanced-chat'
 register()
 
 // --- 1. Inicializar Stores ---
@@ -19,89 +24,136 @@ const chatStore = useChatStore()
 const authStore = useAuthStore()
 
 // --- 2. Estado del componente ---
+// ID del usuario actual.
+// ¡CAMBIO CLAVE!: La librería requiere un STRING. Tu ID de usuario es un NÚMERO.
+const currentUserId = computed(() => {
+  return authStore.user?.id.toString() || 'id_desconocido';
+});
 
-// ID del usuario actual -> viene del login de FastAPI
-const currentUserId = computed(() => authStore.user?.id || 'id_desconocido')
+// INDICA SI SE CARGÓ UN CHAT
+// Le dice a la librería que el historial de un chat ya se cargó.
+const messagesLoaded = computed(() => {
+  // Es 'true' si el array de mensajes para el chat activo YA existe en el store
+  return chatStore.messagesByChat[chatStore.activeChatId] != null;
+});
 
-// Como dijiste que es Paciente <-> Médico, podemos definir una sala estática.
-// En un futuro, esto podría venir de una API.
-const chatRooms = ref([
-  {
-    roomId: 'chat_principal_medico', // Un ID de sala único
-    roomName: 'Chat Cita Salud', // El nombre que verá el usuario
-    users: [
-      // { _id: 'ID_PACIENTE', username: 'Paciente...' },
-      // { _id: 'ID_MEDICO', username: 'Dr. ...' }
-    ]
-  }
-])
+// --- 3. Mapeo de "Store" a "Librería" (Las partes más importantes) ---
 
-// Acciones de sala (puedes mantener las que tenías)
-const roomActions = ref([
-  { name: 'deleteRoom', title: 'Eliminar chat' }
-])
-
-// Indica a la librería si los mensajes iniciales se han cargado
-const messagesLoaded = computed(() => chatStore.messages.length > 0)
-
-// --- 3. Mapeo de Mensajes (La parte más importante) ---
-
-// `vue-advanced-chat` espera un formato, y tu Mongo tiene otro.
-// Esta propiedad computada hace la "traducción".
-const formattedMessages = computed(() => {
-  return chatStore.messages.map(mongoMsg => {
+/**
+ * TRADUCTOR 1: Convierte la 'chatList' del Store al formato 'rooms' de la librería.
+ */
+const computedRooms = computed(() => {
+  return chatStore.chatList.map(chat => {
+    // Busca al otro participante (asumiendo 1 a 1)
+    const partnerId = chat.participants.find(id => id !== currentUserId.value);
+    
+    // Idealmente, FastAPI debería devolver el nombre del 'partnerId'.
+    // Por ahora, solo mostramos su ID o "Chat Grupal".
+    const partnerName = partnerId ? `Chat con ${partnerId}` : 'Chat Grupal';
+    
     return {
-      _id: mongoMsg._id,
-      content: mongoMsg.text,            // Mapeo: text -> content
-      senderId: mongoMsg.user_id,        // Mapeo: user_id -> senderId
-      timestamp: mongoMsg.timestamp,
-      username: mongoMsg.rol === 'paciente' ? 'Paciente' : 'Personal Médico', // Asignamos username según el rol
+      roomId: chat.chat_id,
+      roomName: partnerName,
+      // La librería necesita este array para saber quién está en la sala
+      users: chat.participants.map(id => ({
+        _id: id.toString(),
+        username: id.toString() === currentUserId.value 
+          ? authStore.user.nombre // ¡Tu nombre!
+          : `Usuario ${id}`     // El nombre del otro
+      }))
+    };
+  });
+});
 
-      // La librería usa esto para mostrar el tick de "enviado"
+/**
+ * TRADUCTOR 2: Convierte los 'activeChatMessages' del Store al formato 'messages' de la librería.
+ */
+const computedMessages = computed(() => {
+  // Usamos el getter que ya creamos en el store
+  return chatStore.activeChatMessages.map(msg => {
+    
+    // --- 🚨 ¡POSIBLE BUG EN TU CÓDIGO! ---
+    // Tu FastAPI (historial) envía 'sender_id' y 'id'.
+    // Tu Go (tiempo real) envía 'user_id' y '_id'.
+    // Este map maneja AMBOS casos para que no se rompa.
+    const sender = (msg.user_id || msg.sender_id || 'desconocido').toString();
+
+    return {
+      _id: msg.id || msg._id,      // Maneja ambos
+      content: msg.text,
+      senderId: sender,            // Maneja ambos
+      timestamp: new Date(msg.timestamp).toLocaleString('es-PE'), // Formatea la fecha
+      
+      // Lógica para el nombre de usuario (puedes mejorarla)
+      username: sender === currentUserId.value ? 'Tú' : `Usuario ${sender}`,
+      
+      // Ticks de "enviado" y "visto"
       saved: true,
       distributed: true,
-    }
-  })
-})
+      seen: true,
+    };
+  });
+});
 
 // --- 4. Métodos (Acciones) ---
+
+/**
+ * Se dispara cuando la librería cambia de sala.
+ * Es el "PEGAMENTO" que sincroniza la librería con nuestro store.
+ */
+const handleRoomChange = (event) => {
+  //event.detail.room.roomId
+  if (!event.detail || !event.detail.room || !event.detail.room.roomId) {
+    console.warn('handleRoomChange fue llamado sin una sala válida, ignorando.');
+    return; // <-- Sal de la función
+  }
+  
+  const newRoomId = event.detail.room.roomId;
+  
+  // Busca el objeto 'chat' completo en nuestro store
+  const chat = chatStore.chatList.find(c => c.chat_id === newRoomId);
+  
+  if (chat) {
+    // Llama a nuestra acción de Pinia para cargar el historial
+    // y marcar este chat como activo.
+    chatStore.selectChat(chat);
+  }
+};
 
 /**
  * Se dispara cuando el usuario presiona "enviar" en la UI.
  */
 const handleSendMessage = (event) => {
-  // event contiene { content, roomId, ... }
+  // event.content (el texto)
+  // event.roomId (ya no lo necesitamos, el store sabe cuál está activo)
   
-  // 💡 AÑADE ESTA VALIDACIÓN
   const text = event.content.trim();
   if (!text) {
-    // Si el mensaje está vacío o solo tiene espacios, no hagas nada.
-    return; 
+    return;
   }
 
-  // Llamamos a nuestra acción de Pinia solo si hay texto
+  // ¡Simple! Solo llamamos a la acción del store.
+  // El store ya sabe el 'activeChatId' y los 'recipientIds'
+  // gracias a que 'handleRoomChange' llamó a 'selectChat'.
   chatStore.sendMessage(text);
-}
-// --- 5. Ciclo de Vida ---
+};
+
+// --- 5. Ciclo de Vida (Gestión de la Conexión) ---
 
 onMounted(() => {
-  // Conectar al WebSocket cuando el componente se monta
-  chatStore.connect()
-
-  // (Opcional) Si necesitas cargar el historial al inicio:
-  // await chatStore.fetchMessageHistory();
-})
+  // 1. Conecta el WebSocket
+  chatStore.connect();
+  
+  // 2. Carga la "bandeja de entrada" (lista de salas) desde FastAPI
+  chatStore.fetchChatList();
+});
 
 onUnmounted(() => {
-  // Desconectar al salir de la vista para limpiar
-  
-  // 🛑 ¡COMENTA ESTA LÍNEA MIENTRAS DESARROLLAS!
-  // chatStore.disconnect()
-  
-  // El HMR de Vite está causando que esto se llame
-  // constantemente, creando un bucle de desconexión.
-  // En producción (npm run build), sí funcionará bien.
-})
+  // Desconecta al salir.
+  // Tu comentario sobre HMR (Hot Module Replacement) es 100% correcto.
+  // En desarrollo, esto es molesto, pero en producción es necesario.
+  chatStore.disconnect();
+});
 
 </script>
 
