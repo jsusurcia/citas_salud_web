@@ -32,6 +32,18 @@ apiClient.interceptors.request.use(
   }
 );
 
+apiClient.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      const authStore = useAuthStore();
+      authStore.logout();
+      window.location.href = '/auth';
+    }
+    return Promise.reject(error);
+  }
+)
+
 // --- 3. FUNCIONES DE LA API DE CHAT ---
 
 /**
@@ -42,13 +54,14 @@ export const createOrGetChat = async (recipientId) => {
   try {
     // Llama al endpoint POST /chats que creamos en FastAPI
     const response = await apiClient.post('/chats/', {
-      recipient_id: recipientId,
+      // Enviamos el ID del usuario con el que queremos chatear
+      recipient_id: recipientId
     });
-    // Devuelve los datos del chat: { chat_id, participants, ... }
+    // Devuelve los datos del chat: { chat_id: str, participants: [], created_at: str }
     return response.data;
   } catch (error) {
     console.error('Error al crear o obtener el chat:', error.response?.data || error.message);
-    throw error; // Lanza el error para que el store de Pinia lo atrape
+    throw error;
   }
 };
 
@@ -57,7 +70,8 @@ export const createOrGetChat = async (recipientId) => {
  */
 export const getChatList = async () => {
   try {
-    const response = await apiClient.get('/chats/');
+    const response = await apiClient.get('/chats');
+    // [{chat_id: str, participants: [], created_at: str}, ...]
     return response.data;
   } catch (error) {
     console.error('Error al obtener la lista de chats:', error.response?.data || error.message);
@@ -67,10 +81,12 @@ export const getChatList = async () => {
 
 /**
  * Obtiene el historial de mensajes de un chat específico.
+ *  * @param {string} chatId - El ID del chat.
  */
 export const getChatHistory = async (chatId) => {
   try {
     const response = await apiClient.get(`/chats/${chatId}/messages/`);
+    // [{id: str, chat_id: str, sender_id: str, text: str, timestamp: str}, ...]
     return response.data;
   } catch (error) {
     console.error('Error al obtener el historial del chat:', error.response?.data || error.message);
