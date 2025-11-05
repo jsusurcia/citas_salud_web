@@ -114,6 +114,11 @@ const loadCitas = async () => {
         console.log('🔄 Cargando citas...')
         const personalId = authStore.user?.id || authStore.user?.id_personal
         
+        // --- AÑADIDO PARA DEPURAR ---
+        console.log('ID del médico (desde authStore):', personalId)
+        console.log('Usuario completo (desde authStore):', authStore.user)
+        // -----------------------------
+        
         if (!personalId) {
             errorMessage.value = 'No se pudo obtener el ID del personal médico'
             return
