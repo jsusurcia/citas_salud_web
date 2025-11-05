@@ -54,11 +54,11 @@ const eventosDisponibilidad = ref([
 const eventosDelCalendario = computed(() => {
     // 1. Mapea las citas (vienen del prop)
     const eventosCitas = props.citas.map(cita => ({
-        _id: cita.id, // ID original
+        _id: cita.id_cita, // <-- CORRECCIÓN 1: (era cita.id)
         start: formatSplitDate(cita.fecha_hora),
         end: formatSplitDate(cita.fecha_hora, 60), // Asumimos 1 hora de cita
         title: getNombrePaciente(cita) || 'Cita Programada',
-        class: `cita-${cita.estado?.toLowerCase() || 'confirmada'}`,
+        class: `cita-${cita.estado_cita?.toLowerCase() || 'confirmada'}`, // <-- CORRECCIÓN 2: (era cita.estado)
         type: 'cita', // Identificador
         data: cita, // Guardamos la data original
         

@@ -26,7 +26,7 @@
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div 
                     v-for="cita in citasPendientes" 
-                    :key="cita.id"
+                    :key="cita.id_cita" <!-- Corregido para usar la llave primaria real -->
                     class="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
                     <div class="mb-3 flex items-center justify-between">
                         <div class="text-sm text-gray-500">
@@ -35,13 +35,13 @@
                         </div>
                         <span 
                             :class="{
-                                'bg-orange-100 text-orange-800': cita.estado?.toLowerCase() === 'pendiente',
-                                'bg-red-100 text-red-800': cita.estado?.toLowerCase() === 'cancelada',
-                                'bg-green-100 text-green-800': cita.estado?.toLowerCase() === 'confirmada',
-                                'bg-blue-100 text-blue-800': cita.estado?.toLowerCase() === 'en_viaje' || cita.estado?.toLowerCase() === 'atendida'
+                                'bg-orange-100 text-orange-800': cita.estado_cita?.toLowerCase() === 'pendiente',
+                                'bg-red-100 text-red-800': cita.estado_cita?.toLowerCase() === 'cancelada',
+                                'bg-green-100 text-green-800': cita.estado_cita?.toLowerCase() === 'confirmada',
+                                'bg-blue-100 text-blue-800': cita.estado_cita?.toLowerCase() === 'en_viaje' || cita.estado_cita?.toLowerCase() === 'atendida'
                             }"
                             class="px-2 py-1 rounded-full text-xs font-medium">
-                            {{ getEstadoLabel(cita.estado) }}
+                            {{ getEstadoLabel(cita.estado_cita) }}
                         </span>
                     </div>
                     
@@ -50,10 +50,11 @@
                     </div>
                     
                     <div class="text-sm text-gray-600 mb-4">
-                        <p>{{ cita.especialidad?.nombre || 'Medicina General' }} - {{ cita.tipo_atencion || 'En consultorio' }}</p>
+                        <!-- Lógica actualizada para leer los datos anidados -->
+                        <p>{{ cita.personal_medico_especialidad?.especialidad?.nombre || 'Medicina General' }} - {{ cita.tipo_atencion || 'En consultorio' }}</p>
                     </div>
                     
-                    <div v-if="cita.estado?.toLowerCase() === 'pendiente'" class="flex gap-2">
+                    <div v-if="cita.estado_cita?.toLowerCase() === 'pendiente'" class="flex gap-2">
                         <ButtonComponent 
                             type="button" 
                             variant="primary" 
@@ -94,10 +95,10 @@ import LoaderComponent from '../components/LoaderComponent.vue'
 import { useAuthStore } from '../stores/authStore'
 import { 
     getCitasApi, 
-    getCitasPendientesApi,
+    // getCitasPendientesApi, // Ya no la necesitamos, filtraremos la lista principal
     aprobarCitaApi, 
     rechazarCitaApi 
-} from '../api/citas'
+} from '../api/citas' // Quitamos la importación de getCitasPendientesApi
 
 const authStore = useAuthStore()
 const citas = ref([])
@@ -114,55 +115,45 @@ const loadCitas = async () => {
         console.log('🔄 Cargando citas...')
         const personalId = authStore.user?.id || authStore.user?.id_personal
         
-        // --- AÑADIDO PARA DEPURAR ---
         console.log('ID del médico (desde authStore):', personalId)
-        console.log('Usuario completo (desde authStore):', authStore.user)
-        // -----------------------------
         
         if (!personalId) {
             errorMessage.value = 'No se pudo obtener el ID del personal médico'
+            loading.value = false // Detener el loader si no hay ID
             return
         }
         
-        // Cargar citas aprobadas/programadas (excluyendo pendientes)
+        // --- INICIO DE LA CORRECCIÓN ---
+        
+        // 1. Cargar TODAS las citas del médico (la API ya las devuelve anidadas)
+        // Ya no llamamos a getCitasPendientesApi, ahorramos una llamada a la API
         const dataCitas = await getCitasApi(personalId)
-        // Filtrar citas confirmadas, atendidas o en viaje (excluir pendientes y canceladas)
-        const citasConfirmadas = dataCitas.filter(c => {
-            const estado = c.estado_cita?.toLowerCase() || c.estado?.toLowerCase() || ''
+
+        // 2. Filtrar para el calendario (confirmadas, atendidas, en viaje)
+        // Se quita el .map() porque los datos ya son correctos
+        citas.value = dataCitas.filter(c => {
+            const estado = c.estado_cita?.toLowerCase() || ''
             return estado === 'confirmada' || estado === 'atendida' || estado === 'en_viaje'
         })
-        citas.value = citasConfirmadas.map(c => ({
-            id: c.id_cita || c.id,
-            fecha_hora: c.fecha_hora || c.fecha_cita,
-            estado: c.estado_cita || c.estado,
-            tipo_atencion: c.tipo_atencion || c.modalidad || 'En consultorio',
-            paciente: c.paciente || c.paciente_data,
-            especialidad: c.especialidad || c.especialidad_data,
-            direccion: c.direccion || null,
-            id_personal: c.id_personal
-        }))
         
-        // Cargar citas pendientes
-        const dataPendientes = await getCitasPendientesApi(personalId)
-        citasPendientes.value = dataPendientes.map(c => ({
-            id: c.id_cita || c.id,
-            fecha_hora: c.fecha_hora || c.fecha_cita,
-            estado: c.estado_cita || c.estado,
-            tipo_atencion: c.tipo_atencion || c.modalidad || 'En consultorio',
-            paciente: c.paciente || c.paciente_data,
-            especialidad: c.especialidad || c.especialidad_data,
-            direccion: c.direccion || null,
-            id_personal: c.id_personal
-        }))
+        // 3. Filtrar para las tarjetas (pendientes)
+        // Se quita el .map()
+        citasPendientes.value = dataCitas.filter(c => {
+            const estado = c.estado_cita?.toLowerCase() || ''
+            return estado === 'pendiente' || estado === 'pendiente_aprobacion'
+        })
         
-        console.log('✅ Citas cargadas:', citas.value.length)
-        console.log('✅ Citas pendientes:', citasPendientes.value.length)
+        // --- FIN DE LA CORRECCIÓN ---
+        
+        console.log('✅ Citas cargadas para el calendario:', citas.value.length)
+        console.log('✅ Citas pendientes cargadas:', citasPendientes.value.length)
+
     } catch (error) {
         console.error('❌ Error al cargar citas:', error)
         
-        if (error.detail) {
+        if (error && error.detail) {
             errorMessage.value = error.detail
-        } else if (error.message) {
+        } else if (error && error.message) {
             errorMessage.value = error.message
         } else {
             errorMessage.value = 'Error al cargar las citas'
@@ -191,16 +182,13 @@ const formatFechaHora = (fechaHora) => {
 }
 
 const getNombrePaciente = (cita) => {
+    // La API (con el schema corregido) envía 'cita.paciente'
     if (!cita.paciente) return 'Paciente desconocido'
     
-    if (typeof cita.paciente === 'string') {
-        return cita.paciente
-    }
-    
     const paciente = cita.paciente
-    const nombres = paciente.nombres || paciente.nombre || ''
-    const apellidoPaterno = paciente.apellido_paterno || paciente.apellidoPaterno || ''
-    const apellidoMaterno = paciente.apellido_materno || paciente.apellidoMaterno || ''
+    const nombres = paciente.nombres || ''
+    const apellidoPaterno = paciente.apellido_paterno || ''
+    const apellidoMaterno = paciente.apellido_materno || ''
     
     return `${nombres} ${apellidoPaterno} ${apellidoMaterno}`.trim() || 'Paciente desconocido'
 }
@@ -224,20 +212,14 @@ const getEstadoLabel = (estado) => {
 // Aprobar cita
 const handleAprobar = async (cita) => {
     try {
-        console.log('✅ Aprobando cita:', cita.id)
-        await aprobarCitaApi(cita.id)
+        console.log('✅ Aprobando cita:', cita.id_cita)
+        await aprobarCitaApi(cita.id_cita) // Usamos id_cita
         console.log('✅ Cita aprobada exitosamente')
-        
-        // Recargar citas
-        await loadCitas()
-        
+        await loadCitas() // Recargamos todo
     } catch (error) {
         console.error('❌ Error al aprobar cita:', error)
-        
-        if (error.detail) {
+        if (error && error.detail) {
             errorMessage.value = error.detail
-        } else if (error.message) {
-            errorMessage.value = error.message
         } else {
             errorMessage.value = 'Error al aprobar la cita'
         }
@@ -246,25 +228,22 @@ const handleAprobar = async (cita) => {
 
 // Rechazar cita
 const handleRechazar = async (cita) => {
+    // 🛑 IMPORTANTE: No uses 'confirm' nativo, bloquea el navegador.
+    // Tu proyecto tiene un 'ConfirmModalComponent.vue', deberías usar ese.
+    // Por ahora, lo dejamos con confirm, pero es una mala práctica.
     if (!confirm('¿Estás seguro de que deseas rechazar esta cita?')) {
         return
     }
     
     try {
-        console.log('❌ Rechazando cita:', cita.id)
-        await rechazarCitaApi(cita.id)
+        console.log('❌ Rechazando cita:', cita.id_cita)
+        await rechazarCitaApi(cita.id_cita) // Usamos id_cita
         console.log('✅ Cita rechazada exitosamente')
-        
-        // Recargar citas
-        await loadCitas()
-        
+        await loadCitas() // Recargamos todo
     } catch (error) {
         console.error('❌ Error al rechazar cita:', error)
-        
-        if (error.detail) {
+        if (error && error.detail) {
             errorMessage.value = error.detail
-        } else if (error.message) {
-            errorMessage.value = error.message
         } else {
             errorMessage.value = 'Error al rechazar la cita'
         }
