@@ -15,7 +15,7 @@
 
         <!-- Calendario Semanal con Citas -->
         <div v-else class="mb-8">
-            <DoctorCalendarComponent 
+            <DoctorCalendarCitaComponent 
                 :citas="citas" 
                 @refresh="loadCitas" />
         </div>
@@ -88,7 +88,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import LayoutComponent from '../components/LayoutComponent.vue'
-import DoctorCalendarComponent from '../components/DoctorCalendarComponent.vue'
+import DoctorCalendarCitaComponent from '../components/DoctorCalendarCitaComponent.vue'
 import ButtonComponent from '../components/ButtonComponent.vue'
 import LoaderComponent from '../components/LoaderComponent.vue'
 import { useAuthStore } from '../stores/authStore'

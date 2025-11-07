@@ -41,6 +41,7 @@ apiClient.interceptors.response.use(
     // 2. Error de Permisos (403)
     if (response?.status === 403) {
       console.error('❌ Error 403: Sin permisos')
+      // oe urcia, aquí metele eso de llevar a la página de espera OwO
       return Promise.reject(new Error('No tiene permisos para esta acción.'))
     }
 

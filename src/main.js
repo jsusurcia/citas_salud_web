@@ -4,6 +4,7 @@ import './style.css'
 import App from './App.vue'
 import router from './router'
 import '@fortawesome/fontawesome-free/css/all.min.css'
+import { firebaseApp } from './firebase/config';
 
 const app = createApp(App)
 
