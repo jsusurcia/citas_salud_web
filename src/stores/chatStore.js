@@ -66,7 +66,7 @@ export const useChatStore = defineStore('chat', {
       }
 
       const wsURL = `ws://localhost:8083/ws?token=${token}`;
-      console.log('Chat: Conectando a', wsURL);
+      //console.log('Chat: Conectando a', wsURL);
       this.socket = new WebSocket(wsURL);
 
       this.setupSocketListeners();
@@ -80,14 +80,14 @@ export const useChatStore = defineStore('chat', {
 
       this.socket.onopen = () => {
         // --- ESTA ES LA ÚNICA LÓGICA QUE NECESITAS ---
-        console.log('Chat: Conexión WebSocket establecida.');
+        //console.log('Chat: Conexión WebSocket establecida.');
         this.isConnected = true;
       };
 
       this.socket.onmessage = (event) => {
         try {
           const message = JSON.parse(event.data);
-          console.log('Chat: Mensaje recibido:', message);
+          //console.log('Chat: Mensaje recibido:', message);
 
           const chatId = message.chat_id;
 
@@ -218,7 +218,7 @@ export const useChatStore = defineStore('chat', {
         recipient_ids: recipientIds
       };
 
-      console.log("Chat: Enviando mensaje:", payload);
+      //console.log("Chat: Enviando mensaje:", payload);
       this.socket.send(JSON.stringify(payload));
     },
 

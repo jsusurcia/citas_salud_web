@@ -38,6 +38,8 @@ const computedRooms = computed(() => {
   return chatStore.chatList.map(chat => {
     // Busca al otro participante (asumiendo 1 a 1)
     const partner = chat.participants.find(p => p.user_id !== currentUserId.value);
+
+    //console.log("Chat ID:", chat.chat_id, "Partner:", partner);
     
     // Idealmente, FastAPI debería devolver el nombre del 'partner'.
     // Por ahora, solo mostramos su ID o "Chat Grupal".
@@ -91,19 +93,21 @@ const messagesLoaded = computed(() => {
  * (Reemplaza a 'fetchMessages' de la plantilla)
  */
 const handleRoomChange = (event) => {
-  // Validación de seguridad (la que hicimos antes)
-  if (!event.detail || !event.detail.room || !event.detail.room.roomId) {
-    console.warn('handleRoomChange llamado sin sala, ignorando.');
+  //console.log(event) // ¡Gracias por esto!
+  
+  // Comprobamos que el array 'detail' y su primer elemento (0) existan.
+  if (!event.detail || !event.detail[0] || !event.detail[0].room || !event.detail[0].room.roomId) {
+    console.warn('handleRoomChange llamado sin sala válida, ignorando.');
     return;
   }
 
-  const newRoomId = event.detail.room.roomId;
+  // Accedemos al roomId a través del array
+  const newRoomId = event.detail[0].room.roomId;
   
   // Busca el objeto 'chat' completo en nuestra lista
   const chat = chatStore.chatList.find(c => c.chat_id === newRoomId);
   
   if (chat) {
-    // ¡Llama a la acción de Pinia!
     chatStore.selectChat(chat);
   }
 };
@@ -135,7 +139,7 @@ onMounted(async () => {
   // Si la lista de chats no está vacía,
   // selecciona el primer chat automáticamente.
   if (chatStore.chatList.length > 0) {
-    console.log("Carga inicial: Seleccionando el primer chat.");
+    //console.log("Carga inicial: Seleccionando el primer chat.");
     await chatStore.selectChat(chatStore.chatList[0]);
   }
 });
@@ -149,7 +153,6 @@ onUnmounted(() => {
 <style>
 .chat-container {
   width: 100%;
-  height: 100vh;
   background-color: #f4f6f8;
   display: flex;
   flex-direction: column;
