@@ -1,7 +1,7 @@
 <template>
   <LayoutComponent>
     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-      <h1 class="text-2xl font-bold text-gray-700">Gestión de Horarios</h1>
+      <h1 class="text-2xl font-bold text-gray-700">Gestión de horarios</h1>
       
       <ButtonComponent 
         type="button" 
@@ -34,6 +34,20 @@
         </ul>
       </div>
 
+      <div class="mb-4">
+        <label for="tipoAtencion" class="block mb-2 text-sm font-medium text-gray-900">
+          Tipo de atención
+        </label>
+        <select 
+          id="tipoAtencion" 
+          v-model="tipoAtencion"
+          class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-green-500 focus:border-green-500 block w-full max-w-xs p-2.5"
+        >
+          <option :value="true">En centro médico (Posta)</option>
+          <option :value="false">Visita domiciliar</option>
+        </select>
+      </div>
+
       <DoctorCalendarHorariosComponent 
         :horarios="horarios"
         @crear-horario="handleCrear"
@@ -46,7 +60,7 @@
 </template>
 
 <script setup>
-import { onMounted, computed } from 'vue'
+import { onMounted, computed, ref } from 'vue'
 import { useHorarioStore } from '../stores/horarioStore' // Asegúrate que la ruta sea correcta
 
 // Componentes de UI
@@ -64,6 +78,9 @@ const horarios = computed(() => horarioStore.horarios)
 const isLoading = computed(() => horarioStore.isLoading)
 const error = computed(() => horarioStore.error)
 
+
+const tipoAtencion = ref(true)
+
 // 3. Cargar los datos iniciales
 // Cuando el componente se monta, llama a la acción 'fetchHorarios' del store
 onMounted(() => {
@@ -77,10 +94,29 @@ onMounted(() => {
  * Se llama cuando el calendario emite '@crear-horario'.
  * Pasa los datos del nuevo horario a la acción del store.
  */
-const handleCrear = (data) => {
-  console.log('Vista: Recibido evento @crear-horario', data)
-  // El store se encargará de llamar a la API y añadir el resultado a la lista 'horarios'
-  horarioStore.addHorario(data)
+const handleCrear = (timeData) => { // timeData es {fecha, hora_inicio, hora_fin}
+  console.log('Vista: Recibido evento @crear-horario (solo tiempo)', timeData)
+  console.log('Vista: Usando tipo de atención:', tipoAtencion.value ? 'En Posta' : 'Visita')
+
+  // 1. Ensamblar el payload final
+  const horarioData = {
+    ...timeData,
+    en_centro_medico: tipoAtencion.value, // <-- El valor de nuestro <select>
+  };
+
+  // 2. Añadir datos condicionales
+  if (horarioData.en_centro_medico === true) {
+    // Si es en posta, añadimos los datos (puedes hacerlos dinámicos si quieres)
+    horarioData.nombre_centro_medico = "Posta Principal"; 
+    horarioData.direccion_centro_medico = "Plaza de Armas s/n";
+  }
+  // Si es 'false' (visita), no añadimos 'nombre' ni 'direccion',
+  // y se guardarán como 'null' en el backend (que es lo correcto).
+  
+  console.log('Vista: Enviando payload completo al store', horarioData)
+
+  // 3. Llamar al store
+  horarioStore.addHorario(horarioData)
 }
 
 /**

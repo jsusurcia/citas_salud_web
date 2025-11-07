@@ -38,7 +38,7 @@ const eventosDelCalendario = computed(() => {
     id: horario.id_horario, 
     start: `${horario.fecha} ${horario.hora_inicio.substring(0, 5)}`,
     end: `${horario.fecha} ${horario.hora_fin.substring(0, 5)}`,
-    title: horario.en_centro_medico ? 'En Posta' : 'Visita',
+    title: horario.en_centro_medico ? 'En posta' : 'Visita',
     class: horario.en_centro_medico ? 'bloque-disponible' : 'bloque-visita'
   }))
 })
@@ -71,10 +71,7 @@ const emitirCreacion = (fecha, hora_inicio, hora_fin) => {
   const nuevoHorarioData = {
     fecha: fecha,
     hora_inicio: hora_inicio,
-    hora_fin: hora_fin,
-    en_centro_medico: true, // Por defecto
-    nombre_centro_medico: "Posta Principal", 
-    direccion_centro_medico: "Plaza de Armas s/n" 
+    hora_fin: hora_fin
   }
   
   console.log('%c--- 5. Emitiendo @crear-horario hacia la Vista ---', 'color: #ffc107', nuevoHorarioData);
