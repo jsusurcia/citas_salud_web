@@ -41,6 +41,7 @@ apiClient.interceptors.response.use(
     // 2. Error de Permisos (403)
     if (response?.status === 403) {
       console.error('❌ Error 403: Sin permisos')
+      // oe urcia, aquí metele eso de llevar a la página de espera OwO
       return Promise.reject(new Error('No tiene permisos para esta acción.'))
     }
 
@@ -107,11 +108,38 @@ const normalizeLoginResponse = (response) => {
 * Función de login "inteligente" y unificada.
 */
 export const loginApi = async (correo, clave) => {
-  // 1. Intentar como Personal Médico (el caso más común)
+  let medicoResponse
   try {
-    console.log('🏥 Intentando login como personal médico...')
-    const res = await apiClient.post('/personal_medico/login', { correo, clave })
-    return normalizeLoginResponse(res)
+    // 1. Intentar como Personal Médico (el caso más común)
+    medicoResponse = await apiClient.post('/personal_medico/login', { correo, clave })
+
+    // El backend respondió (no fue un error 4xx/5xx).
+    // Ahora leemos el 'status' de negocio dentro de la respuesta.
+    const { status, data } = medicoResponse.data // data es ItemResponse
+
+    if (status === 'success') {
+      // --- CASO 1: Login de médico directo (1 especialidad) ---
+      console.log('🏥 Login personal médico (Caso 1) exitoso.')
+      return {
+        status: 'success',
+        // Usamos tu normalizador para obtener { access_token, user }
+        data: normalizeLoginResponse(medicoResponse)
+      }
+    }
+
+    if (status === 'requires_selection') {
+      // --- CASO 2: Se requiere selección de especialidad ---
+      console.log('👨‍⚕️ Login personal médico (Caso 2) requiere selección.')
+      return {
+        status: 'requires_selection',
+        // data ya tiene la forma { message, specialties, temp_token }
+        data: data
+      }
+    }
+
+    // Por si acaso el backend devuelve un status desconocido
+    console.error('Respuesta de login desconocida:', medicoResponse.data)
+    throw new Error('Respuesta de login inesperada.')
 
   } catch (medicoError) {
     console.warn('⚠️ Login personal médico falló:', medicoError.message)
@@ -135,8 +163,14 @@ export const loginApi = async (correo, clave) => {
         correo_electronico: correo,
         constrasena: clave,
       })
-      // Normalizamos la respuesta (ya no pasamos el rol)
-      return normalizeLoginResponse(res)
+      
+      // --- CASO 3: Login de admin exitoso ---
+      console.log('👨‍💼 Login administrador exitoso.')
+      // Envolvemos la respuesta para ser consistentes
+      return {
+        status: 'success',
+        data: normalizeLoginResponse(res) // Usamos tu normalizador
+      }
 
     } catch (adminError) {
       console.error('❌ Login administrador también falló:', adminError.message)
@@ -145,6 +179,32 @@ export const loginApi = async (correo, clave) => {
     }
   }
 }
+
+export const selectSpecialtyApi = async (id_especialidad, temp_token) => {
+  console.log(`👨‍⚕️ Completando login con especialidad ID: ${id_especialidad}`)
+  
+  // Hacemos la petición al nuevo endpoint
+  // MUY IMPORTANTE: Debemos pasar el temp_token en la cabecera
+  // 'Authorization' para ESTA petición específica.
+  const res = await apiClient.post(
+    '/personal_medico/select-specialty',
+    { id_especialidad }, // El body de la petición
+    {
+      // Configuración especial de Axios para ESTA petición
+      headers: {
+        // Sobreescribimos el interceptor global
+        // (que buscaría 'access_token' en localStorage)
+        Authorization: `Bearer ${temp_token}`
+      }
+    }
+  )
+
+  // La respuesta de este endpoint, si es exitosa,
+  // es idéntica a un login normal (Caso 1).
+  // ¡Podemos reusar tu normalizador!
+  return normalizeLoginResponse(res)
+}
+
 /**
  * Funciones de registro (ahora súper limpias) -> Bajito ese que lo programó
  * El interceptor se encarga del 'catch'

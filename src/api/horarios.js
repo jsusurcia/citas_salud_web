@@ -2,40 +2,27 @@ import apiClient from './auth.js'
 
 // Función para obtener la disponibilidad del personal médico
 // El endpoint devuelve todos los horarios, pero filtramos por id_personal en el frontend
-export const getDisponibilidadApi = async (personalId) => {
+export const getDisponibilidadApi = async () => {
   try {
-    console.log('🔍 Obteniendo disponibilidad del personal médico...', personalId)
-    const res = await apiClient.get('/horarios_disponibles/')
+    console.log('🔍 Obteniendo disponibilidad (GET /mis_horarios)...')
     
-    const response = res.data
-    
+    // 1. Llamamos al endpoint.
+    const res = await apiClient.get('/horarios_disponibles/mis_horarios') 
+    // (Asegúrate que la ruta base 'horarios_disponibles' esté correcta)
+
+    const response = res.data // { status, message, data }
+
+    // 2. Verificamos la respuesta del backend
     if (response.status === 'success' && Array.isArray(response.data)) {
-      console.log('✅ Formato ItemListResponse correcto')
-      // Filtrar horarios por id_personal si se proporciona
-      let horarios = response.data
-      if (personalId) {
-        horarios = response.data.filter(h => {
-          const idPersonal = h.id_personal || h.personal_medico?.id_personal || h.personal_medico?.id
-          return idPersonal == personalId || idPersonal === personalId
-        })
-        console.log(`✅ Horarios filtrados para personal ${personalId}:`, horarios.length)
-      }
-      return horarios
-    } else if (Array.isArray(response)) {
-      // Si viene como array directo
-      let horarios = response
-      if (personalId) {
-        horarios = response.filter(h => {
-          const idPersonal = h.id_personal || h.personal_medico?.id_personal || h.personal_medico?.id
-          return idPersonal == personalId || idPersonal === personalId
-        })
-      }
-      return horarios
+      console.log(`✅ Horarios recibidos: ${response.data.length}`)
+      return response.data // Devolvemos el array de horarios
     } else {
+      console.error('❌ Formato de respuesta inesperado:', response)
       throw { detail: 'Formato de respuesta inesperado del servidor' }
     }
   } catch (error) {
     console.error('❌ Error al obtener disponibilidad:', error)
+    // El interceptor de Axios ('auth.js') ya debería haber parseado el error
     throw error.response?.data || { detail: error.message || 'Error al conectar con el servidor' }
   }
 }
@@ -43,23 +30,20 @@ export const getDisponibilidadApi = async (personalId) => {
 // Función para crear disponibilidad
 export const createDisponibilidadApi = async (disponibilidadData) => {
   try {
-    console.log('➕ Creando disponibilidad:', disponibilidadData)
+    console.log('➕ Creando disponibilidad (POST /horarios_disponibles/):', disponibilidadData)
     const res = await apiClient.post('/horarios_disponibles/', disponibilidadData)
     
-    const response = res.data
+    const response = res.data // { status, message, data }
     
     if (response.status === 'success' && response.data) {
       console.log('✅ Horario creado exitosamente')
       return response.data
-    } else if (response.id || response.id_horario_disponible) {
-      return response
     } else {
       throw { detail: 'Formato de respuesta inesperado del servidor' }
     }
   } catch (error) {
     console.error('❌ Error al crear disponibilidad:', error)
     
-    // Extraer mensaje de error del backend
     if (error.response?.data) {
       const errorData = error.response.data
       if (errorData.detail) {
@@ -75,13 +59,13 @@ export const createDisponibilidadApi = async (disponibilidadData) => {
 // Función para actualizar disponibilidad
 export const updateDisponibilidadApi = async (disponibilidadId, disponibilidadData) => {
   try {
-    console.log('✏️ Actualizando disponibilidad:', disponibilidadId)
+    //console.log('✏️ Actualizando disponibilidad:', disponibilidadId)
     const res = await apiClient.put(`/horarios_disponibles/${disponibilidadId}`, disponibilidadData)
     
     const response = res.data
     
     if (response.status === 'success' && response.data) {
-      console.log('✅ Horario actualizado exitosamente')
+      //console.log('✅ Horario actualizado exitosamente')
       return response.data
     } else {
       throw { detail: 'Formato de respuesta inesperado del servidor' }

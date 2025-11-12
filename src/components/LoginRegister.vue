@@ -3,7 +3,7 @@ import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/authStore'
 
-import { loginApi, registerPersonalMedicoApi } from '../api/auth'
+import { loginApi, registerPersonalMedicoApi, selectSpecialtyApi } from '../api/auth'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -12,6 +12,8 @@ const authStore = useAuthStore()
 const isActive = ref(false)
 const loading = ref(false)
 const errorMessage = ref('')
+
+const selectionData = ref(null)
 
 // Formulario de login
 const loginForm = reactive({
@@ -32,16 +34,17 @@ const registerForm = reactive({
 const showRegister = () => {
   isActive.value = true
   errorMessage.value = ''
+  selectionData.value = null
 }
 
 const showLogin = () => {
   isActive.value = false
   errorMessage.value = ''
+  selectionData.value = null
 }
 
 // Handler de login - Conectado con el backend
 const handleLogin = async () => {
-  // Validación básica
   if (!loginForm.correo || !loginForm.contrasena) {
     errorMessage.value = 'Por favor completa todos los campos'
     return
@@ -51,42 +54,76 @@ const handleLogin = async () => {
   errorMessage.value = ''
 
   try {
-    console.log('🚀 Iniciando login unificado...', { correo: loginForm.correo })
+    // 1. LLAMAR A LA API DE LOGIN (que ahora devuelve 'status')
+    const result = await loginApi(loginForm.correo, loginForm.contrasena)
 
-    // 1. LLAMAR A LA API UNIFICADA
-    // 'loginApi' se encarga de probar admin/médico y normalizar la respuesta
-    const loginData = await loginApi(loginForm.correo, loginForm.contrasena)
+    // 2. COMPROBAR LA RESPUESTA
+    if (result.status === 'success') {
+      // --- CASO 1: LOGIN EXITOSO Y DIRECTO (Admin o Médico con 1 especialidad) ---
+      // 'result.data' es { access_token, user }
+      const loginData = result.data
 
-    // 'loginData' ya está limpio, gracias a 'normalizeLoginResponse'
-    // Tiene este formato: { access_token: "...", user: { id: 1, nombre: "...", rol: "..." } }
+      console.log(`✅ Login exitoso como: ${loginData.user.rol}`)
 
-    console.log(`✅ Login exitoso como: ${loginData.user.rol}`)
+      // 3. GUARDAR EN EL STORE
+      authStore.login(loginData.access_token, loginData.user)
 
-    // 2. GUARDAR EN EL STORE
-    // Tu store ya está listo para recibir esto
-    authStore.login(loginData.access_token, loginData.user)
+      // 4. REDIRIGIR
+      if (loginData.user.rol === 'personal_medico') {
+        router.push('/personal_med/disponibilidad')
+      } else if (loginData.user.rol === 'admin') {
+        router.push('/admin/validacion')
+      } else {
+        router.push('/')
+      }
 
-    console.log('✅ Login guardado, redirigiendo...')
-
-    // 3. REDIRIGIR
-    if (loginData.user.rol === 'personal_medico') {
-      router.push('/personal_med/disponibilidad')
-    } else if (loginData.user.rol === 'admin') {
-      router.push('/admin/validacion')
-    } else {
-      router.push('/')
+    } else if (result.status === 'requires_selection') {
+      // --- CASO 2: SE REQUIERE SELECCIÓN DE ESPECIALIDAD ---
+      // 'result.data' es { message, specialties, temp_token }
+      console.log('👨‍⚕️ Requiere selección de especialidad.')
+      selectionData.value = result.data // <-- Guardamos los datos del Paso 2
+      // No redirigimos, la UI reaccionará a 'selectionData'
     }
 
   } catch (error) {
-    // 4. MANEJAR ERROR
-    // 'error.message' ya viene limpio y parseado por el INTERCEPTOR de Axios
+    // 5. MANEJAR ERROR
     console.error('❌ Error de login:', error.message)
     errorMessage.value = error.message
 
   } finally {
-    // 5. LIMPIAR
+    // 6. LIMPIAR
     loading.value = false
-    console.log('🏁 Login finalizado.')
+  }
+}
+
+// 4. Nueva función para manejar el Paso 2
+const handleSelectSpecialty = async (specialtyId) => {
+  if (!selectionData.value?.temp_token) return
+
+  loading.value = true
+  errorMessage.value = ''
+
+  try {
+    // 1. LLAMAR A LA NUEVA API
+    const finalLoginData = await selectSpecialtyApi(
+      specialtyId,
+      selectionData.value.temp_token
+    )
+
+    // 'finalLoginData' es { access_token, user }
+    console.log(`✅ Login completado como: ${finalLoginData.user.rol}`)
+
+    // 2. GUARDAR EN EL STORE
+    authStore.login(finalLoginData.access_token, finalLoginData.user)
+
+    // 3. REDIRIGIR
+    router.push('/personal_med/disponibilidad')
+
+  } catch (error) {
+    console.error('❌ Error seleccionando especialidad:', error.message)
+    errorMessage.value = error.message
+  } finally {
+    loading.value = false
   }
 }
 
@@ -133,14 +170,14 @@ const handleForgotPassword = () => {
 <template>
   <!-- 1. Fondo y fuente principal aplicados con Tailwind -->
   <div class="min-h-screen flex justify-center items-center bg-gradient-to-r from-[#e2e2e2] to-[#c9ffea] font-exo">
-    
+
     <!-- 2. Contenedor principal de la animación -->
     <div :class="['container-box', { active: isActive }]">
-      
+
       <!-- === FORMULARIO DE LOGIN === -->
       <div class="form-box login">
-        <form @submit.prevent="handleLogin" class="w-full">
-          
+        <form v-if="!selectionData" @submit.prevent="handleLogin" class="w-full">
+
           <!-- 3. Tipografía migrada a Tailwind -->
           <h1 class="font-inter font-bold text-xl mb-2.5">Iniciar sesión</h1>
           <p class="text-sm text-gray-700 mb-4">Bienvenido de nuevo. Inicia sesión en tu cuenta</p>
@@ -148,35 +185,61 @@ const handleForgotPassword = () => {
           <!-- 4. Input-box migrado a Tailwind -->
           <div class="mb-5 text-left">
             <label for="login-correo" class="block mb-2 text-sm font-semibold text-gray-600">Correo electrónico</label>
-            <input id="login-correo" v-model="loginForm.correo" type="email" placeholder="tu.correo@ejemplo.com" required
-                   class="w-full px-5 py-2 bg-gray-100 rounded-lg border-none outline-none text-sm text-gray-800 font-medium placeholder-gray-400 focus:ring-2 focus:ring-[#10A697]">
+            <input id="login-correo" v-model="loginForm.correo" type="email" placeholder="tu.correo@ejemplo.com"
+              required
+              class="w-full px-5 py-2 bg-gray-100 rounded-lg border-none outline-none text-sm text-gray-800 font-medium placeholder-gray-400 focus:ring-2 focus:ring-[#10A697]">
           </div>
 
           <!-- 5. Input-box migrado a Tailwind -->
           <div class="mb-5 text-left">
             <label for="login-contrasena" class="block mb-2 text-sm font-semibold text-gray-600">Contraseña</label>
             <input id="login-contrasena" v-model="loginForm.contrasena" type="password" placeholder="******" required
-                   class="w-full px-5 py-2 bg-gray-100 rounded-lg border-none outline-none text-sm text-gray-800 font-medium placeholder-gray-400 focus:ring-2 focus:ring-[#10A697]">
+              class="w-full px-5 py-2 bg-gray-100 rounded-lg border-none outline-none text-sm text-gray-800 font-medium placeholder-gray-400 focus:ring-2 focus:ring-[#10A697]">
           </div>
 
           <!-- 6. Forgot-link migrado a Tailwind -->
           <div class="text-right -mt-2.5 mb-4">
-            <a href="#" @click.prevent="handleForgotPassword" class="text-sm text-[#10A697] hover:underline">Olvidé mi contraseña</a>
+            <a href="#" @click.prevent="handleForgotPassword" class="text-sm text-[#10A697] hover:underline">Olvidé mi
+              contraseña</a>
           </div>
 
           <!-- 7. Error-message migrado a Tailwind -->
-          <div v-if="errorMessage" 
-               class="my-2.5 p-3 bg-red-100 text-red-700 border border-red-300 rounded-md text-sm text-center break-words z-10 relative">
+          <div v-if="errorMessage"
+            class="my-2.5 p-3 bg-red-100 text-red-700 border border-red-300 rounded-md text-sm text-center break-words z-10 relative">
             {{ errorMessage }}
           </div>
 
           <!-- 8. Botón migrado a Tailwind -->
           <button type="submit" :disabled="loading"
-                  class="w-full h-10 bg-[#10A697] text-white rounded-lg shadow-sm text-base font-semibold transition-opacity duration-300 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed">
+            class="w-full h-10 bg-[#10A697] text-white rounded-lg shadow-sm text-base font-semibold transition-opacity duration-300 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed">
             <span v-if="loading">Cargando...</span>
             <span v-else>Iniciar sesión</span>
           </button>
         </form>
+
+        <div v-if="selectionData" class="w-full">
+
+          <h1 class="font-inter font-bold text-xl mb-2.5">Selecciona tu especialidad</h1>
+          <p class="text-sm text-gray-700 mb-4">{{ selectionData.message }}</p>
+
+          <!-- Lista de botones de especialidad -->
+          <div class="flex flex-col gap-3">
+            <button v-for="spec in selectionData.especialidades" :key="spec.id_especialidad"
+              @click="handleSelectSpecialty(spec.id_especialidad)" :disabled="loading"
+              class="w-full h-10 bg-[#10A697] text-white rounded-lg shadow-sm text-base font-semibold transition-opacity duration-300 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed">
+              <span v-if="loading">Cargando...</span>
+              <span v-else>{{ spec.nombre }}</span>
+            </button>
+          </div>
+        </div>
+
+
+        <div v-if="errorMessage"
+          class="my-2.5 p-3 bg-red-100 text-red-700 border border-red-300 rounded-md text-sm text-center break-words z-10 relative w-full mt-4">
+          <!-- <--- MODIFICADO: Movido fuera del form -->
+          {{ errorMessage }}
+        </div>
+
       </div>
 
       <!-- === FORMULARIO DE REGISTRO === -->
@@ -188,29 +251,35 @@ const handleForgotPassword = () => {
           <!-- Input nombre completo -->
           <div class="mb-5 text-left">
             <label for="nombre-completo" class="block mb-2 text-sm font-semibold text-gray-600">Nombre completo</label>
-            <input id="nombre-completo" v-model="registerForm.nombreCompleto" type="text" placeholder="Tu nombre completo" required
-                   class="w-full px-5 py-2 bg-gray-100 rounded-lg border-none outline-none text-sm text-gray-800 font-medium placeholder-gray-400 focus:ring-2 focus:ring-[#10A697]">
+            <input id="nombre-completo" v-model="registerForm.nombreCompleto" type="text"
+              placeholder="Tu nombre completo" required
+              class="w-full px-5 py-2 bg-gray-100 rounded-lg border-none outline-none text-sm text-gray-800 font-medium placeholder-gray-400 focus:ring-2 focus:ring-[#10A697]">
           </div>
 
           <!-- Input correo -->
           <div class="mb-5 text-left">
-            <label for="register-correo" class="block mb-2 text-sm font-semibold text-gray-600">Correo electrónico</label>
-            <input id="register-correo" v-model="registerForm.correo" type="email" placeholder="tu.email@ejemplo.com" required
-                   class="w-full px-5 py-2 bg-gray-100 rounded-lg border-none outline-none text-sm text-gray-800 font-medium placeholder-gray-400 focus:ring-2 focus:ring-[#10A697]">
+            <label for="register-correo" class="block mb-2 text-sm font-semibold text-gray-600">Correo
+              electrónico</label>
+            <input id="register-correo" v-model="registerForm.correo" type="email" placeholder="tu.email@ejemplo.com"
+              required
+              class="w-full px-5 py-2 bg-gray-100 rounded-lg border-none outline-none text-sm text-gray-800 font-medium placeholder-gray-400 focus:ring-2 focus:ring-[#10A697]">
           </div>
 
           <!-- Input contraseña -->
           <div class="mb-5 text-left">
             <label for="register-contrasena" class="block mb-2 text-sm font-semibold text-gray-600">Contraseña</label>
-            <input id="register-contrasena" v-model="registerForm.contrasena" type="password" placeholder="Crea una contraseña" required
-                   class="w-full px-5 py-2 bg-gray-100 rounded-lg border-none outline-none text-sm text-gray-800 font-medium placeholder-gray-400 focus:ring-2 focus:ring-[#10A697]">
+            <input id="register-contrasena" v-model="registerForm.contrasena" type="password"
+              placeholder="Crea una contraseña" required
+              class="w-full px-5 py-2 bg-gray-100 rounded-lg border-none outline-none text-sm text-gray-800 font-medium placeholder-gray-400 focus:ring-2 focus:ring-[#10A697]">
           </div>
-          
+
           <!-- Input confirmar contraseña -->
           <div class="mb-5 text-left">
-            <label for="contrasena-confirmar" class="block mb-2 text-sm font-semibold text-gray-600">Confirmar contraseña</label>
-            <input id="contrasena-confirmar" v-model="registerForm.contrasenaConfirmar" type="password" placeholder="Confirma tu contraseña" required
-                   class="w-full px-5 py-2 bg-gray-100 rounded-lg border-none outline-none text-sm text-gray-800 font-medium placeholder-gray-400 focus:ring-2 focus:ring-[#10A697]">
+            <label for="contrasena-confirmar" class="block mb-2 text-sm font-semibold text-gray-600">Confirmar
+              contraseña</label>
+            <input id="contrasena-confirmar" v-model="registerForm.contrasenaConfirmar" type="password"
+              placeholder="Confirma tu contraseña" required
+              class="w-full px-5 py-2 bg-gray-100 rounded-lg border-none outline-none text-sm text-gray-800 font-medium placeholder-gray-400 focus:ring-2 focus:ring-[#10A697]">
           </div>
 
           <!-- 9. Select (Enfoque Híbrido) -->
@@ -226,14 +295,14 @@ const handleForgotPassword = () => {
           </div>
 
           <!-- Mensaje de error -->
-          <div v-if="errorMessage" 
-               class="my-2.5 p-3 bg-red-100 text-red-700 border border-red-300 rounded-md text-sm text-center break-words z-10 relative">
+          <div v-if="errorMessage"
+            class="my-2.5 p-3 bg-red-100 text-red-700 border border-red-300 rounded-md text-sm text-center break-words z-10 relative">
             {{ errorMessage }}
           </div>
-          
+
           <!-- Botón de registro -->
           <button type="submit" :disabled="loading"
-                  class="w-full mt-2 h-10 bg-[#10A697] text-white rounded-lg shadow-sm text-base font-semibold transition-opacity duration-300 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed">
+            class="w-full mt-2 h-10 bg-[#10A697] text-white rounded-lg shadow-sm text-base font-semibold transition-opacity duration-300 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed">
             <span v-if="loading">Cargando...</span>
             <span v-else>Registrarse</span>
           </button>
@@ -252,7 +321,7 @@ const handleForgotPassword = () => {
           </p>
           <!-- 13. Botón de Toggle migrado (variante) -->
           <button @click="showRegister"
-                  class="w-40 h-12 bg-transparent border-2 border-white rounded-lg shadow-none text-base font-semibold text-white transition-opacity duration-300 cursor-pointer">
+            class="w-40 h-12 bg-transparent border-2 border-white rounded-lg shadow-none text-base font-semibold text-white transition-opacity duration-300 cursor-pointer">
             Registrar
           </button>
         </div>
@@ -266,7 +335,7 @@ const handleForgotPassword = () => {
             <b>¡Inicia sesión!</b>
           </p>
           <button @click="showLogin"
-                  class="w-40 h-12 bg-transparent border-2 border-white rounded-lg shadow-none text-base font-semibold text-white transition-opacity duration-300 cursor-pointer">
+            class="w-40 h-12 bg-transparent border-2 border-white rounded-lg shadow-none text-base font-semibold text-white transition-opacity duration-300 cursor-pointer">
             Iniciar sesión
           </button>
         </div>
@@ -281,9 +350,17 @@ const handleForgotPassword = () => {
 @import url('https://fonts.googleapis.com/css2?family=ADLaM+Display&family=Exo:ital,wght@0,100..900;1,100..900&family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=SUSE+Mono:ital,wght@0,100..800;1,100..800&display=swap');
 
 /* Clases de utilidad de fuentes para el template */
-.font-exo { font-family: "Exo", sans-serif; }
-.font-adlam { font-family: "ADLaM Display", sans-serif; }
-.font-inter { font-family: "Inter", sans-serif; }
+.font-exo {
+  font-family: "Exo", sans-serif;
+}
+
+.font-adlam {
+  font-family: "ADLaM Display", sans-serif;
+}
+
+.font-inter {
+  font-family: "Inter", sans-serif;
+}
 
 
 /* --- CSS DE ANIMACIÓN --- */
@@ -316,15 +393,19 @@ const handleForgotPassword = () => {
 .container-box.active .form-box {
   right: 50%;
 }
+
 .form-box.register {
   visibility: hidden;
 }
+
 .container-box.active .form-box.register {
   visibility: visible;
 }
+
 .form-box.login {
   visibility: visible;
 }
+
 .container-box.active .form-box.login {
   right: 50%;
 }
@@ -369,14 +450,17 @@ const handleForgotPassword = () => {
   left: 0;
   transition-delay: 1.2s;
 }
+
 .container-box.active .toggle-panel.toggle-left {
   left: -50%;
   transition-delay: 0.6s;
 }
+
 .toggle-panel.toggle-right {
   right: -50%;
   transition-delay: 0.6s;
 }
+
 .container-box.active .toggle-panel.toggle-right {
   right: 0;
   transition-delay: 1.2s;

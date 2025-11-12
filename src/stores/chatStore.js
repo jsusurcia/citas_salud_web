@@ -42,8 +42,8 @@ export const useChatStore = defineStore('chat', {
 
   actions: {
     /**
-     * Inicia la conexión WebSocket.
-     */
+    * Inicia la conexión WebSocket.
+    */
     connect() {
       const authStore = useAuthStore();
       const token = authStore.token;
@@ -66,27 +66,28 @@ export const useChatStore = defineStore('chat', {
       }
 
       const wsURL = `ws://localhost:8083/ws?token=${token}`;
-      console.log('Chat: Conectando a', wsURL);
+      //console.log('Chat: Conectando a', wsURL);
       this.socket = new WebSocket(wsURL);
 
       this.setupSocketListeners();
     },
 
     /**
-     * Configura los listeners del socket.
-     */
+    * Configura los listeners del socket.
+    */
     setupSocketListeners() {
       if (!this.socket) return;
 
       this.socket.onopen = () => {
-        console.log('Chat: Conexión WebSocket establecida.');
+        // --- ESTA ES LA ÚNICA LÓGICA QUE NECESITAS ---
+        //console.log('Chat: Conexión WebSocket establecida.');
         this.isConnected = true;
       };
 
       this.socket.onmessage = (event) => {
         try {
           const message = JSON.parse(event.data);
-          console.log('Chat: Mensaje recibido:', message);
+          //console.log('Chat: Mensaje recibido:', message);
 
           const chatId = message.chat_id;
 
@@ -121,9 +122,9 @@ export const useChatStore = defineStore('chat', {
     },
 
     /**
-     * carga la bandeja de entrada
-     * solo se llama 1 vez, cuando el usuario entra a la vista de los chats
-     */
+    * carga la bandeja de entrada
+    * solo se llama 1 vez, cuando el usuario entra a la vista de los chats
+    */
     async fetchChatList() {
       try {
         const chats = await getChatList();
@@ -134,8 +135,8 @@ export const useChatStore = defineStore('chat', {
     },
 
     /**
-     * se llama al hacer clic en un chat de la lista
-     */
+    * se llama al hacer clic en un chat de la lista
+    */
     async selectChat(chat) {
       try {
         if (!chat || !chat.chat_id) {
@@ -161,9 +162,9 @@ export const useChatStore = defineStore('chat', {
     },
 
     /**
-     * se usa para iniciar un chat con un nuevo usuario
-     * (Ej: desde un botón "Chatear" en un perfil de médico).
-     */
+    * se usa para iniciar un chat con un nuevo usuario
+    * (Ej: desde un botón "Chatear" en un perfil de médico).
+    */
     async openChatWithUser(recipientId) {
       try {
         // 1. Llama a FastAPI para obtener/crear el chat
@@ -176,7 +177,7 @@ export const useChatStore = defineStore('chat', {
         // (Opcional) Refrescar la lista de chats si este es nuevo
         const chatExists = this.chatList.some(c => c.chat_id === chatData.chat_id);
         if (!chatExists) {
-        this.chatList.unshift(chatData); // Añade al inicio
+          this.chatList.unshift(chatData); // Añade al inicio
         }
 
       } catch (error) {
@@ -185,8 +186,8 @@ export const useChatStore = defineStore('chat', {
     },
 
     /**
-     * Envía un mensaje al backend de Go.
-     */
+    * Envía un mensaje al backend de Go.
+    */
     sendMessage(messageText) {
       const authStore = useAuthStore();
       const currentUserId = authStore.user?.id; // O como obtengas el ID
@@ -202,9 +203,9 @@ export const useChatStore = defineStore('chat', {
       }
 
       // Lógica para obtener los destinatarios
-      const recipientIds = this.activeChatParticipants.filter(
-        id => id !== currentUserId
-      );
+      const recipientIds = this.activeChatParticipants
+        .map(p => p.user_id)
+        .filter(id => id !== currentUserId);
 
       if (recipientIds.length === 0) {
         console.warn("Chat: Intentando enviar mensaje a un chat sin otros participantes.");
@@ -217,13 +218,13 @@ export const useChatStore = defineStore('chat', {
         recipient_ids: recipientIds
       };
 
-      console.log("Chat: Enviando mensaje:", payload);
+      //console.log("Chat: Enviando mensaje:", payload);
       this.socket.send(JSON.stringify(payload));
     },
 
     /**
-     * Desconecta manualmente y limpia timers.
-     */
+    * Desconecta manualmente y limpia timers.
+    */
     disconnect() {
       if (this.reconnectTimer) {
         clearTimeout(this.reconnectTimer);

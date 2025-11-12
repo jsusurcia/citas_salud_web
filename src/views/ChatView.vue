@@ -1,8 +1,7 @@
 <template>
     <LayoutComponent>
         <!-- Título y descripción -->
-        <h1 class="mb-4 text-2xl font-bold text-gray-700">AURA</h1>
-        <div class="mb-4">
+        <div class="h-full">
             <ChatComponent/>
         </div>
     </LayoutComponent>
