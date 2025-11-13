@@ -218,3 +218,48 @@ export const updateEstadoEspecialidadApi = async (especialidadId, estado) => {
     throw { detail: error.message || 'Error al conectar con el servidor' }
   }
 }
+
+// Función para eliminar una especialidad
+export const deleteEspecialidadApi = async (especialidadId) => {
+  try {
+    console.log('🗑️ Eliminando especialidad:', especialidadId)
+    const res = await apiClient.delete(`/especialidades/${especialidadId}`)
+
+    console.log('✅ Respuesta de eliminación:', res.data)
+
+    const response = res.data
+
+    if (response?.status === 'success') {
+      return response.data ?? true
+    }
+
+    // Algunos backends devuelven 204 sin cuerpo
+    return true
+  } catch (error) {
+    console.error('❌ Error al eliminar especialidad:', error)
+    console.error('📋 Detalles del error:', {
+      status: error.response?.status,
+      statusText: error.response?.statusText,
+      data: error.response?.data,
+      message: error.message
+    })
+
+    if (error.response?.data) {
+      const errorData = error.response.data
+
+      if (errorData.detail) {
+        if (typeof errorData.detail === 'string') {
+          throw { detail: errorData.detail }
+        } else if (Array.isArray(errorData.detail) && errorData.detail.length > 0) {
+          const firstError = errorData.detail[0]
+          const errorMsg = firstError.msg || firstError.message || JSON.stringify(firstError)
+          throw { detail: errorMsg }
+        }
+      }
+
+      throw errorData
+    }
+
+    throw { detail: error.message || 'Error al conectar con el servidor' }
+  }
+}
