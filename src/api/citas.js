@@ -1,57 +1,51 @@
 import apiClient from './auth.js'
 
-// --- FUNCIÓN MODIFICADA ---
-// Ahora llama al nuevo endpoint /cita/personal/{personalId}
-export const getCitasApi = async (personalId) => {
+// --- FUNCIÓN CORREGIDA ---
+// Llama al nuevo endpoint que trae solo las citas del calendario
+export const getCitasCalendarioApi = async () => {
   try {
-    console.log(`🔍 Obteniendo citas del personal médico ID: ${personalId}`)
-    // Llama al nuevo endpoint que filtra por ID en el backend
-    const res = await apiClient.get(`/cita/personal/${personalId}`)
+    // Ya no necesita personalId, el backend lo toma del token
+    console.log(`🔍 Obteniendo citas del calendario...`) 
+    const res = await apiClient.get(`/cita/personal/calendario`)
     
     const response = res.data
     
-    // El backend ya devuelve ItemListResponse
     if (response.status === 'success' && Array.isArray(response.data)) {
-      console.log('✅ Formato ItemListResponse correcto')
-      return response.data // Devuelve los datos directamente
-    } 
-    // Manejo de fallback por si la API devuelve solo el array
-    else if (Array.isArray(response)) {
-      console.warn('⚠️ Respuesta de API directa (array), se esperaba ItemListResponse')
+      console.log('✅ Citas de calendario encontradas:', response.data.length)
+      return response.data
+    } else if (Array.isArray(response)) {
       return response
     } else {
       throw { detail: 'Formato de respuesta inesperado del servidor' }
     }
   } catch (error) {
-    console.error('❌ Error al obtener citas:', error)
-    throw error.response?.data || { detail: error.message || 'Error al conectar con el servidor' }
+    console.error('❌ Error al obtener citas del calendario:', error)
+    throw error.response?.data || { detail: error.message || 'Error al conectar' }
   }
 }
 
-// --- FUNCIÓN MODIFICADA ---
-// Ahora simplemente filtra la lista que ya obtuvimos (mucho más rápido)
-export const getCitasPendientesApi = async (personalId) => {
+// Llama al nuevo endpoint que trae solo las citas pendientes
+export const getCitasPendientesApi = async () => {
   try {
-    console.log('⏳ Obteniendo citas pendientes...')
-    // 1. Obtenemos la lista ya filtrada por médico
-    const todasLasCitasDelMedico = await getCitasApi(personalId)
+    // Ya no necesita personalId, el backend lo toma del token
+    console.log(`⏳ Obteniendo citas pendientes...`)
+    const res = await apiClient.get(`/cita/personal/pendientes`)
     
-    // 2. Filtramos solo por estado en el frontend
-    const citasPendientes = todasLasCitasDelMedico.filter(c => {
-      const estado = c.estado?.toLowerCase() || c.estado_cita?.toLowerCase() || ''
-      return estado === 'pendiente' || estado === 'pendiente_aprobacion'
-    })
+    const response = res.data
     
-    console.log(`✅ Citas pendientes encontradas: ${citasPendientes.length}`)
-    return citasPendientes
-
+    if (response.status === 'success' && Array.isArray(response.data)) {
+      console.log('✅ Citas pendientes encontradas:', response.data.length)
+      return response.data
+    } else if (Array.isArray(response)) {
+      return response
+    } else {
+      throw { detail: 'Formato de respuesta inesperado del servidor' }
+    }
   } catch (error) {
     console.error('❌ Error al obtener citas pendientes:', error)
-    // El error ya fue manejado por getCitasApi, pero lo volvemos a lanzar
-    throw error
+    throw error.response?.data || { detail: error.message || 'Error al conectar' }
   }
 }
-
 // --- El resto de funciones (aprobar, rechazar, etc.) quedan IGUAL ---
 
 // Función para confirmar/aprobar una cita
@@ -59,26 +53,17 @@ export const aprobarCitaApi = async (citaId) => {
   try {
     console.log('✅ Confirmando cita:', citaId)
     const res = await apiClient.post(`/cita/${citaId}/confirmar`)
-    
     const response = res.data
-    
     if (response.status === 'success' && response.data) {
-      console.log('✅ Cita confirmada exitosamente')
       return response.data
     } else {
       throw { detail: 'Formato de respuesta inesperado del servidor' }
     }
   } catch (error) {
     console.error('❌ Error al confirmar cita:', error)
-    
     if (error.response?.data) {
-      const errorData = error.response.data
-      if (errorData.detail) {
-        throw { detail: errorData.detail }
-      }
-      throw errorData
+      throw error.response.data
     }
-    
     throw { detail: error.message || 'Error al conectar con el servidor' }
   }
 }
@@ -88,26 +73,17 @@ export const rechazarCitaApi = async (citaId) => {
   try {
     console.log('❌ Cancelando cita:', citaId)
     const res = await apiClient.post(`/cita/${citaId}/cancelar`)
-    
     const response = res.data
-    
     if (response.status === 'success' && response.data) {
-      console.log('✅ Cita cancelada exitosamente')
       return response.data
     } else {
       throw { detail: 'Formato de respuesta inesperado del servidor' }
     }
   } catch (error) {
     console.error('❌ Error al cancelar cita:', error)
-    
     if (error.response?.data) {
-      const errorData = error.response.data
-      if (errorData.detail) {
-        throw { detail: errorData.detail }
-      }
-      throw errorData
+      throw error.response.data
     }
-    
     throw { detail: error.message || 'Error al conectar con el servidor' }
   }
 }
