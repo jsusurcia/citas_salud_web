@@ -234,7 +234,7 @@ const handleForgotPassword = () => {
         </div>
 
 
-        <div v-if="errorMessage"
+        <div v-if="selectionData && errorMessage"
           class="my-2.5 p-3 bg-red-100 text-red-700 border border-red-300 rounded-md text-sm text-center break-words z-10 relative w-full mt-4">
           <!-- <--- MODIFICADO: Movido fuera del form -->
           {{ errorMessage }}

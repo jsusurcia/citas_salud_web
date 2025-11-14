@@ -5,7 +5,7 @@ import ModalForm from '../components/ModalForm.vue'
 import ConfirmModalComponent from '../components/ConfirmModalComponent.vue'
 import ButtonComponent from '../components/ButtonComponent.vue'
 import EspecialidadCardComponent from '../components/EspecialidadCardComponent.vue'
-import { getEspecialidadesApi, createEspecialidadApi, updateEspecialidadApi, updateEstadoEspecialidadApi } from '../api/especialidades'
+import { getEspecialidadesApi, createEspecialidadApi, updateEspecialidadApi, updateEstadoEspecialidadApi, deleteEspecialidadApi } from '../api/especialidades'
 import LoaderComponent from '../components/LoaderComponent.vue'
 import { useAuthStore } from '../stores/authStore'
 
@@ -13,7 +13,12 @@ const authStore = useAuthStore()
 
 const activeModal = ref(null)
 const selectedEspecialidad = ref(null)
-const form = ref({ nombre: '', descripcion: '' })
+const form = ref({
+  nombre: '',
+  descripcion: '',
+  duracionMinutos: 20,
+  precio: 0
+})
 const especialidades = ref([])
 const loading = ref(false)
 const errorMessage = ref('')
@@ -39,6 +44,8 @@ const loadEspecialidades = async () => {
       id: esp.id_especialidad || esp.id,
       nombre: esp.nombre,
       descripcion: esp.descripcion || '',
+      duracionMinutos: Number(esp.duracion_minutos ?? esp.duracionMinutos ?? 0),
+      precio: Number(esp.precio ?? 0),
       habilitada: esp.estado === true // Mapeo explícito: true si estado es true, false si es false o null/undefined
     }))
     
@@ -72,7 +79,12 @@ const closeModal = () => {
 };
 
 const openAddModal = () => {
-  form.value = { nombre: '', descripcion: '' } // Reseteamos el formulario
+  form.value = {
+    nombre: '',
+    descripcion: '',
+    duracionMinutos: 20,
+    precio: 0
+  } // Reseteamos el formulario
   errorMessage.value = '' // Limpiar errores previos
   activeModal.value = 'add'
 };
@@ -81,6 +93,18 @@ const openAddModal = () => {
 const handleCreate = async () => {
   if (!form.value.nombre.trim()) {
     errorMessage.value = 'El nombre es requerido'
+    return
+  }
+
+  const duracion = Number(form.value.duracionMinutos)
+  if (!Number.isFinite(duracion) || duracion <= 0) {
+    errorMessage.value = 'La duración debe ser mayor a cero minutos'
+    return
+  }
+
+  const precio = Number(form.value.precio)
+  if (!Number.isFinite(precio) || precio < 0) {
+    errorMessage.value = 'El precio no puede ser negativo'
     return
   }
   
@@ -101,7 +125,9 @@ const handleCreate = async () => {
     // Preparar los datos según el formato esperado por el backend
     const especialidadData = {
       nombre: form.value.nombre.trim(),
-      descripcion: form.value.descripcion?.trim() || ''
+      descripcion: form.value.descripcion?.trim() || '',
+      duracion_minutos: Math.round(duracion),
+      precio: Number(precio.toFixed(2))
     }
     
     // Llamar a la API del backend
@@ -114,6 +140,8 @@ const handleCreate = async () => {
       id: nuevaEspecialidad.id_especialidad || nuevaEspecialidad.id,
       nombre: nuevaEspecialidad.nombre,
       descripcion: nuevaEspecialidad.descripcion || '',
+      duracionMinutos: Number(nuevaEspecialidad.duracion_minutos ?? nuevaEspecialidad.duracionMinutos ?? 0),
+      precio: Number(nuevaEspecialidad.precio ?? 0),
       habilitada: nuevaEspecialidad.estado === true // Mapeo explícito para mostrar estado correcto
     }
     
@@ -151,7 +179,12 @@ const handleCreate = async () => {
 // Abrir modal de editar
 const openEditModal = (especialidad) => {
   selectedEspecialidad.value = especialidad
-  form.value = { ...especialidad } // Copiamos los datos al formulario
+  form.value = {
+    nombre: especialidad.nombre,
+    descripcion: especialidad.descripcion,
+    duracionMinutos: Number(especialidad.duracionMinutos ?? 0),
+    precio: Number(especialidad.precio ?? 0)
+  } // Copiamos los datos al formulario
   activeModal.value = 'edit'
 };
 
@@ -162,6 +195,18 @@ const handleEdit = async () => {
 
   if(!form.value.nombre.trim()){
     errorMessage.value = 'El nombre es requerido'
+    return
+  }
+
+  const duracion = Number(form.value.duracionMinutos)
+  if (!Number.isFinite(duracion) || duracion <= 0) {
+    errorMessage.value = 'La duración debe ser mayor a cero minutos'
+    return
+  }
+
+  const precio = Number(form.value.precio)
+  if (!Number.isFinite(precio) || precio < 0) {
+    errorMessage.value = 'El precio no puede ser negativo'
     return
   }
 
@@ -182,7 +227,9 @@ const handleEdit = async () => {
     //Preparar los datos según el formato esperado por el backend
     const especialidadData = {
       nombre: form.value.nombre.trim(),
-      descripcion: form.value.descripcion?.trim() || ''
+      descripcion: form.value.descripcion?.trim() || '',
+      duracion_minutos: Math.round(duracion),
+      precio: Number(precio.toFixed(2))
     }
 
     //Llamar a la API del backend
@@ -195,6 +242,8 @@ const handleEdit = async () => {
       id: especialidadActualizada.id_especialidad || especialidadActualizada.id,
       nombre: especialidadActualizada.nombre,
       descripcion: especialidadActualizada.descripcion || '',
+      duracionMinutos: Number(especialidadActualizada.duracion_minutos ?? especialidadActualizada.duracionMinutos ?? 0),
+      precio: Number(especialidadActualizada.precio ?? 0),
       habilitada: especialidadActualizada.estado === true // Mapeo explícito para mostrar estado correcto
     }
 
@@ -304,6 +353,57 @@ const handleToggleStatus = async () => {
     creating.value = false
   }
 }
+
+// Abrir modal de eliminar
+const openDeleteModal = (especialidad) => {
+  selectedEspecialidad.value = especialidad
+  activeModal.value = 'deleteConfirm'
+  errorMessage.value = ''
+}
+
+// Eliminar especialidad
+const handleDelete = async () => {
+  if (!selectedEspecialidad.value) return
+
+  const user = authStore.user
+  if (!user || user.rol !== 'admin') {
+    errorMessage.value = 'Solo los administradores pueden eliminar especialidades'
+    closeModal()
+    return
+  }
+
+  creating.value = true
+  errorMessage.value = ''
+
+  try {
+    const especialidadId = selectedEspecialidad.value.id
+    console.log('🗑️ Eliminando especialidad...', { especialidadId })
+    await deleteEspecialidadApi(especialidadId)
+
+    closeModal()
+    await loadEspecialidades()
+    console.log('✅ Especialidad eliminada exitosamente')
+  } catch (error) {
+    console.error('❌ Error al eliminar especialidad:', error)
+
+    let errorMsg = 'Error al eliminar la especialidad'
+
+    if (error.response?.status === 404) {
+      errorMsg = 'Especialidad no encontrada'
+    } else if (error.response?.status === 403) {
+      errorMsg = 'No tienes permisos para eliminar especialidades. Solo los administradores pueden realizar esta acción.'
+    } else if (error.detail) {
+      errorMsg = error.detail
+    } else if (error.message) {
+      errorMsg = error.message
+    }
+
+    errorMessage.value = errorMsg
+    closeModal()
+  } finally {
+    creating.value = false
+  }
+}
 </script>
 
 <template>
@@ -321,7 +421,7 @@ const handleToggleStatus = async () => {
     </div>
 
     <!-- Mensaje de error -->
-    <div v-if="errorMessage" class="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg">
+    <div v-if="errorMessage && !activeModal" class="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg">
       {{ errorMessage }}
     </div>
 
@@ -337,10 +437,13 @@ const handleToggleStatus = async () => {
         :key="especialidad.id"
         :title="especialidad.nombre" 
         :description="especialidad.descripcion" 
+        :duration-minutes="especialidad.duracionMinutos"
+        :price="especialidad.precio"
         :is-enabled="especialidad.habilitada"
         @edit="openEditModal(especialidad)" 
         @disable="openConfirmModal(especialidad)" 
-        @enable="openConfirmModal(especialidad)" 
+        @enable="openConfirmModal(especialidad)"
+        @delete="openDeleteModal(especialidad)" 
       />
     </div>
 
@@ -363,6 +466,17 @@ const handleToggleStatus = async () => {
         <label for="descripcion" class="block mb-2 text-sm font-medium text-gray-900">Descripción</label>
         <textarea id="descripcion" v-model="form.descripcion" rows="3" placeholder="Resumen de las funciones..." class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-green-500 focus:border-green-500 block w-full p-2.5"></textarea>
       </div>
+      <div>
+        <label for="duracion" class="block mb-2 text-sm font-medium text-gray-900">Duración (minutos)</label>
+        <input id="duracion" v-model.number="form.duracionMinutos" type="number" min="1" placeholder="Ej. 20" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-green-500 focus:border-green-500 block w-full p-2.5" required />
+      </div>
+      <div>
+        <label for="precio" class="block mb-2 text-sm font-medium text-gray-900">Precio (S/)</label>
+        <input id="precio" v-model.number="form.precio" type="number" min="0" step="0.1" placeholder="Ej. 0.00" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-green-500 focus:border-green-500 block w-full p-2.5" required />
+      </div>
+      <div v-if="activeModal === 'add' && errorMessage" class="p-3 bg-red-100 border border-red-300 text-red-700 rounded-md text-sm">
+        {{ errorMessage }}
+      </div>
     </ModalForm>
 
     <ModalForm 
@@ -378,6 +492,17 @@ const handleToggleStatus = async () => {
       <div>
         <label for="edit-descripcion" class="block mb-2 text-sm font-medium text-gray-900">Descripción</label>
         <textarea id="edit-descripcion" v-model="form.descripcion" rows="3" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-green-500 focus:border-green-500 block w-full p-2.5"></textarea>
+      </div>
+      <div>
+        <label for="edit-duracion" class="block mb-2 text-sm font-medium text-gray-900">Duración (minutos)</label>
+        <input id="edit-duracion" v-model.number="form.duracionMinutos" type="number" min="1" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-green-500 focus:border-green-500 block w-full p-2.5" required />
+      </div>
+      <div>
+        <label for="edit-precio" class="block mb-2 text-sm font-medium text-gray-900">Precio (S/)</label>
+        <input id="edit-precio" v-model.number="form.precio" type="number" min="0" step="0.1" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-green-500 focus:border-green-500 block w-full p-2.5" required />
+      </div>
+      <div v-if="activeModal === 'edit' && errorMessage" class="p-3 bg-red-100 border border-red-300 text-red-700 rounded-md text-sm">
+        {{ errorMessage }}
       </div>
     </ModalForm>
 
@@ -397,6 +522,15 @@ const handleToggleStatus = async () => {
       description="La especialidad volverá a estar disponible para asignaciones y uso activo en el sistema."
       confirmLabel="Sí, habilitar"
       @confirm="handleToggleStatus" 
+      @close="closeModal" />
+
+    <ConfirmModalComponent 
+      :isOpen="activeModal === 'deleteConfirm'" 
+      type="danger"
+      title="¿Eliminar esta especialidad?" 
+      description="Esta acción eliminará la especialidad de forma permanente. No podrás recuperarla luego."
+      confirmLabel="Sí, eliminar"
+      @confirm="handleDelete" 
       @close="closeModal" />
 
   </LayoutComponent>
