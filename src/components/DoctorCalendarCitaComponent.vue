@@ -7,10 +7,7 @@
             active-view="week"
             :disable-views="['years', 'month']"
             :events="eventosDelCalendario" 
-            :editable-events="{ title: false, drag: true, resize: true, create: true, delete: true }"
-            @event-create="crearBloqueDisponibilidad" 
-            @event-drag-stop="actualizarBloqueDisponibilidad"
-            @event-resize-stop="actualizarBloqueDisponibilidad"
+            :editable-events="false"  
             :on-event-click="manejarClickEnEvento"
             style="height: 600px;"
             :locale="'es'" >
@@ -22,8 +19,6 @@
 import { ref, computed } from 'vue';
 import { VueCal } from 'vue-cal';
 import 'vue-cal/style';
-// Asumiendo que tienes tu API de disponibilidad aquí
-// import { createDisponibilidadApi, updateDisponibilidadApi, deleteDisponibilidadApi } from '../api/disponibilidad'; 
 
 // --- DEFINICIÓN DE PROPS ---
 const props = defineProps({
@@ -34,98 +29,46 @@ const props = defineProps({
     }
 });
 
-// --- EMITS ---
-const emit = defineEmits(['refresh']); // Para pedirle al padre que recargue
-
-// --- ESTADO INTERNO ---
-// Array para almacenar los bloques de DISPONIBILIDAD del doctor
-const eventosDisponibilidad = ref([
-    {
-        start: '2025-10-15 10:00',
-        end: '2025-10-15 12:00',
-        title: 'Disponible',
-        class: 'bloque-disponible',
-        type: 'disponibilidad' // Identificador
-    }
-]);
-
 // --- PROPIEDAD COMPUTADA ---
-// Fusiona las citas (props) con la disponibilidad (estado interno)
+// Fusiona las citas (props)
 const eventosDelCalendario = computed(() => {
     // 1. Mapea las citas (vienen del prop)
     const eventosCitas = props.citas.map(cita => ({
-        _id: cita.id_cita, // <-- CORRECCIÓN 1: (era cita.id)
-        start: formatSplitDate(cita.fecha_hora),
-        end: formatSplitDate(cita.fecha_hora, 60), // Asumimos 1 hora de cita
+        _id: cita.id_cita, // ID original
+        
+        // --- INICIO DE LA CORRECCIÓN ---
+        // Leemos las propiedades 'fecha' y 'hora_inicio' del schema CitaConDetalles
+        start: formatDateTime(cita.fecha, cita.hora_inicio),
+        // Asumimos 60 min de duración. Tu API de 'Cita_Response' tiene 'duracion_minutos'.
+        // Podrías añadir 'duracion_minutos' al schema CitaConDetalles en tu backend.
+        end: formatDateTime(cita.fecha, cita.hora_inicio, 60), 
+        
         title: getNombrePaciente(cita) || 'Cita Programada',
-        class: `cita-${cita.estado_cita?.toLowerCase() || 'confirmada'}`, // <-- CORRECCIÓN 2: (era cita.estado)
+        class: `cita-${cita.estado_cita?.toLowerCase() || 'confirmada'}`,
+        // --- FIN DE LA CORRECCIÓN ---
+
         type: 'cita', // Identificador
         data: cita, // Guardamos la data original
         
-        // Hacemos que las citas NO sean editables por el médico
+        // Hacemos que las citas NO sean editables
         draggable: false,
         resizable: false,
         deletable: false,
     }));
 
-    // 2. Mapea la disponibilidad (estado interno)
-    const eventosDisponibles = eventosDisponibilidad.value.map(evento => ({
-        ...evento,
-        deletable: true, // Aseguramos que la disponibilidad se pueda borrar
-        draggable: true,
-        resizable: true
-    }));
-
-    // 3. Devuelve ambos arrays combinados
-    return [...eventosDisponibles, ...eventosCitas];
+    // (Quitamos los eventos de disponibilidad, ya que este calendario es solo para citas)
+    return eventosCitas;
 });
 
 // --- MÉTODOS ---
 
-// Se llama cuando el doctor CREA un nuevo bloque verde
-const crearBloqueDisponibilidad = async (event, deleteEventFunction) => {
-    const nuevoBloque = {
-        start: formatDate(event.start),
-        end: formatDate(event.end),
-        title: 'Disponible',
-        class: 'bloque-disponible',
-        type: 'disponibilidad'
-    };
-
-    console.log('Guardando en BD (Disponibilidad):', nuevoBloque);
-    
-    // try {
-    //   await createDisponibilidadApi(nuevoBloque);
-    //   eventosDisponibilidad.value.push(nuevoBloque);
-    // } catch (error) {
-    //   console.error("Error al crear disponibilidad", error);
-    // }
-    
-    eventosDisponibilidad.value.push(nuevoBloque); // Temporal
-    
-    return event;
-};
-
-// Se llama cuando el doctor MUEVE o CAMBIA TAMAÑO de un bloque verde
-const actualizarBloqueDisponibilidad = async (event) => {
-    console.log("Actualizando bloque:", event);
-    // Aquí iría la lógica para llamar a updateDisponibilidadApi(event.id, { ... })
-};
-
-// Se llama al hacer CLIC en un evento
 const manejarClickEnEvento = (event, e) => {
-    e.stopPropagation(); // Evita que se cree un nuevo evento
-    
+    e.stopPropagation(); 
     if (event.type === 'cita') {
         console.log("Clic en Cita:", event.data);
         // Aquí podrías emitir un evento para abrir un modal con detalles
         // emit('ver-detalles-cita', event.data);
     } 
-    
-    if (event.type === 'disponibilidad') {
-        console.log("Clic en Disponibilidad:", event);
-        // Lógica para editar disponibilidad si es necesario
-    }
 };
 
 
@@ -141,36 +84,26 @@ const formatDate = (dateObj) => {
     return `${year}-${month}-${day} ${hours}:${minutes}`;
 };
 
-// Formatea un string 'YYYY-MM-DDTHH:mm:ss' a 'YYYY-MM-DD HH:mm'
-// y opcionalmente añade minutos
-const formatSplitDate = (dateString, addMinutes = 0) => {
+// NUEVA Función de Utilidad: Combina fecha y hora
+const formatDateTime = (dateStr, timeStr, addMinutes = 0) => {
     try {
-        const fecha = new Date(dateString);
+        // Combina la fecha (YYYY-MM-DD) y la hora (HH:MM:SS)
+        const fecha = new Date(`${dateStr}T${timeStr}`);
         fecha.setMinutes(fecha.getMinutes() + addMinutes);
         return formatDate(fecha);
     } catch (e) {
-        return dateString;
+        return null; // Devuelve null si la fecha es inválida
     }
 }
 
+// MODIFICADA: Lee los nuevos campos del schema CitaConDetalles
 const getNombrePaciente = (cita) => {
-    if (!cita.paciente) return null;
-    const paciente = cita.paciente;
-    const nombres = paciente.nombres || paciente.nombre || '';
-    const apellidoPaterno = paciente.apellido_paterno || paciente.apellidoPaterno || '';
-    return `${nombres} ${apellidoPaterno}`.trim();
+    return `${cita.nombre_paciente || ''} ${cita.apellido_paciente || ''}`.trim() || 'Paciente desconocido';
 }
 
 </script>
 
 <style>
-/* Estilo para los bloques de DISPONIBILIDAD */
-.vuecal__event.bloque-disponible {
-    background-color: rgba(25, 135, 84, 0.8); /* Verde */
-    border: 1px solid rgb(21, 115, 71);
-    color: #fff;
-}
-
 /* Estilos para las CITAS (nuevos) */
 .vuecal__event.cita-confirmada {
     background-color: rgba(13, 110, 253, 0.9); /* Azul */
@@ -185,7 +118,7 @@ const getNombrePaciente = (cita) => {
 }
 
 .vuecal__event.cita-en_viaje {
-    background-color: rgba(25, 135, 84, 0.9); /* Verde (igual que disponible) */
+    background-color: rgba(25, 135, 84, 0.9); /* Verde */
     border: 1px solid rgb(21, 115, 71);
     color: #fff;
 }
