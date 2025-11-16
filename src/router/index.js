@@ -59,7 +59,7 @@ const router = createRouter({
                 const user = authStore.user
                 
                 if (user && user.rol === 'personal_medico') {
-                    return '/personal/disponibilidad_personal_med'
+                    return '/personal_med/disponibilidad'
                 } else if (user && user.rol === 'admin') {
                     return '/admin/validacion'
                 } else {

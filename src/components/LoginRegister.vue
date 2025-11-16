@@ -1,9 +1,11 @@
 <script setup>
-import { ref, reactive } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/authStore'
 
 import { loginApi, registerPersonalMedicoApi, selectSpecialtyApi } from '../api/auth'
+import { getEspecialidadesApi } from '../api/especialidades'
+import { getCentrosApi } from '../api/centro_medico'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -15,6 +17,34 @@ const errorMessage = ref('')
 
 const selectionData = ref(null)
 
+
+const especialidades = ref([])
+const centros = ref([])
+
+const cargando = ref(true)
+const error = ref(null)
+
+onMounted(async () => {
+  try {
+    cargando.value = true
+
+    const [esp, cen] = await Promise.all([
+      getEspecialidadesApi(),
+      getCentrosApi()
+    ])
+
+    especialidades.value = esp
+    centros.value = cen
+    //console.log("el cen xd")
+    //console.log(cen)
+
+  } catch (err) {
+    error.value = err.detail || 'Error inesperado'
+  } finally {
+    cargando.value = false
+  }
+})
+
 // Formulario de login
 const loginForm = reactive({
   correo: '',
@@ -24,10 +54,14 @@ const loginForm = reactive({
 // Formulario de registro
 const registerForm = reactive({
   nombreCompleto: '',
+  nro_documento: '',
+  nro_colegiatura: '',
+  telefono: '',
   correo: '',
   contrasena: '',
   contrasenaConfirmar: '',
-  especialidad: ''
+  especialidad: '',
+  centro: '' //
 })
 
 // Funciones para cambiar entre login y registro
@@ -35,12 +69,27 @@ const showRegister = () => {
   isActive.value = true
   errorMessage.value = ''
   selectionData.value = null
+
+  // Limpiar el formulario de registro
+  registerForm.nombreCompleto = ''
+  registerForm.nro_documento = ''
+  registerForm.nro_colegiatura = ''
+  registerForm.telefono = ''
+  registerForm.correo = ''
+  registerForm.contrasena = ''
+  registerForm.contrasenaConfirmar = ''
+  registerForm.especialidad = ''
+  registerForm.centro = ''
 }
 
 const showLogin = () => {
   isActive.value = false
   errorMessage.value = ''
   selectionData.value = null
+
+  // Limpiar el formulario de login
+  loginForm.correo = ''
+  loginForm.contrasena = ''
 }
 
 // Handler de login - Conectado con el backend
@@ -55,7 +104,14 @@ const handleLogin = async () => {
 
   try {
     // 1. LLAMAR A LA API DE LOGIN (que ahora devuelve 'status')
-    const result = await loginApi(loginForm.correo, loginForm.contrasena)
+    
+    console.log("comprobando ando")
+    console.log(loginForm.correo)
+
+    const result = await loginApi(
+      `${loginForm.correo}@citasalud.com`,
+      loginForm.contrasena
+    )
 
     // 2. COMPROBAR LA RESPUESTA
     if (result.status === 'success') {
@@ -63,7 +119,7 @@ const handleLogin = async () => {
       // 'result.data' es { access_token, user }
       const loginData = result.data
 
-      console.log(`✅ Login exitoso como: ${loginData.user.rol}`)
+      //console.log(`✅ Login exitoso como: ${loginData.user.rol}`)
 
       // 3. GUARDAR EN EL STORE
       authStore.login(loginData.access_token, loginData.user)
@@ -128,6 +184,12 @@ const handleSelectSpecialty = async (specialtyId) => {
 }
 
 const handleRegister = async () => {
+  const nameParts = registerForm.nombreCompleto.trim().split(/\s+/)
+  if (nameParts.length < 3) {
+    errorMessage.value = 'Debes ingresar al menos un nombre y dos apellidos.'
+    return
+  }
+
   if (registerForm.contrasena !== registerForm.contrasenaConfirmar) {
     errorMessage.value = 'Las contraseñas no coinciden'
     return
@@ -137,13 +199,30 @@ const handleRegister = async () => {
   errorMessage.value = ''
 
   try {
+    const namePartsForLogic = [...nameParts]
+    
+    const apellido_materno = namePartsForLogic.pop() || ''
+    const apellido_paterno = namePartsForLogic.pop() || ''
+    
+    const nombres = namePartsForLogic.join(' ')
+
     const userData = {
-      nombres: registerForm.nombreCompleto.split(' ')[0] || registerForm.nombreCompleto,
-      apellido_paterno: registerForm.nombreCompleto.split(' ')[1] || '',
-      apellido_materno: registerForm.nombreCompleto.split(' ')[2] || '',
-      correo: registerForm.correo,
+      nombres: nombres,
+      apellido_paterno: apellido_paterno,
+      apellido_materno: apellido_materno,
+      nro_documento: registerForm.nro_documento,
+      nro_colegiatura: registerForm.nro_colegiatura,
+      telefono: registerForm.telefono,
+      correo: `${registerForm.correo}@citasalud.com`,
       clave: registerForm.contrasena,
-      id_especialidad: parseInt(registerForm.especialidad) || 1,
+      id_especialidad: parseInt(registerForm.especialidad),
+      centros: [parseInt(registerForm.centro)]
+    }
+
+    if (!userData.id_especialidad || !userData.centros[0]) {
+      errorMessage.value = 'Debes seleccionar una especialidad y un centro médico.'
+      loading.value = false
+      return
     }
 
     const response = await registerPersonalMedicoApi(userData)
@@ -179,15 +258,24 @@ const handleForgotPassword = () => {
         <form v-if="!selectionData" @submit.prevent="handleLogin" class="w-full">
 
           <!-- 3. Tipografía migrada a Tailwind -->
-          <h1 class="font-inter font-bold text-xl mb-2.5">Iniciar sesión</h1>
+          <h1 class="font-inter font-bold text-xl mb-2.5">Inicia sesión</h1>
           <p class="text-sm text-gray-700 mb-4">Bienvenido de nuevo. Inicia sesión en tu cuenta</p>
 
           <!-- 4. Input-box migrado a Tailwind -->
           <div class="mb-5 text-left">
             <label for="login-correo" class="block mb-2 text-sm font-semibold text-gray-600">Correo electrónico</label>
-            <input id="login-correo" v-model="loginForm.correo" type="email" placeholder="tu.correo@ejemplo.com"
-              required
-              class="w-full px-5 py-2 bg-gray-100 rounded-lg border-none outline-none text-sm text-gray-800 font-medium placeholder-gray-400 focus:ring-2 focus:ring-[#10A697]">
+            <div class="flex">
+
+              <input id="login-correo" v-model="loginForm.correo" type="text" placeholder="tu.usuario" required
+                @input="loginForm.correo = loginForm.correo.replace(/@/g, '')"
+                class="w-full px-5 py-2 bg-gray-100 rounded-l-lg border-none outline-none text-sm text-gray-800 font-medium placeholder-gray-400 focus:ring-2 focus:ring-[#10A697] focus:z-10 relative">
+
+              <span
+                class="inline-flex items-center px-3 text-sm text-gray-700 bg-gray-200 border border-l-0 border-gray-200 rounded-r-lg">
+                @citasalud.com
+              </span>
+            </div>
+
           </div>
 
           <!-- 5. Input-box migrado a Tailwind -->
@@ -244,68 +332,115 @@ const handleForgotPassword = () => {
 
       <!-- === FORMULARIO DE REGISTRO === -->
       <div class="form-box register">
-        <form @submit.prevent="handleRegister" class="w-full">
-          <h1 class="font-inter font-bold text-xl mb-2.5">Crear una cuenta</h1>
-          <p class="text-sm text-gray-700 mb-4">Ingresa tus datos para registrarte</p>
+        <form @submit.prevent="handleRegister" class="w-full h-full flex flex-col">
 
-          <!-- Input nombre completo -->
-          <div class="mb-5 text-left">
-            <label for="nombre-completo" class="block mb-2 text-sm font-semibold text-gray-600">Nombre completo</label>
-            <input id="nombre-completo" v-model="registerForm.nombreCompleto" type="text"
-              placeholder="Tu nombre completo" required
-              class="w-full px-5 py-2 bg-gray-100 rounded-lg border-none outline-none text-sm text-gray-800 font-medium placeholder-gray-400 focus:ring-2 focus:ring-[#10A697]">
+          <div class="flex-shrink-0">
+            <h1 class="font-inter font-bold text-xl mb-2.5">Crear una cuenta</h1>
+            <p class="text-sm text-gray-700 mb-4">Ingresa tus datos para registrarte</p>
           </div>
 
-          <!-- Input correo -->
-          <div class="mb-5 text-left">
-            <label for="register-correo" class="block mb-2 text-sm font-semibold text-gray-600">Correo
-              electrónico</label>
-            <input id="register-correo" v-model="registerForm.correo" type="email" placeholder="tu.email@ejemplo.com"
-              required
-              class="w-full px-5 py-2 bg-gray-100 rounded-lg border-none outline-none text-sm text-gray-800 font-medium placeholder-gray-400 focus:ring-2 focus:ring-[#10A697]">
+          <div class="flex-grow overflow-y-auto pr-2">
+
+            <div class="mb-5 text-left">
+              <label for="nombre-completo" class="block mb-2 text-sm font-semibold text-gray-600">Nombre
+                completo</label>
+              <input id="nombre-completo" v-model="registerForm.nombreCompleto" type="text"
+                placeholder="Tu nombre completo" required
+                class="w-full px-5 py-2 bg-gray-100 rounded-lg border-none outline-none text-sm text-gray-800 font-medium placeholder-gray-400 focus:ring-2 focus:ring-[#10A697]">
+            </div>
+
+            <div class="mb-5 text-left">
+              <label for="documento" class="block mb-2 text-sm font-semibold text-gray-600">N° de documento</label>
+              <input id="documento" v-model="registerForm.nro_documento" type="text" placeholder="70152088" required
+                class="w-full px-5 py-2 bg-gray-100 rounded-lg border-none outline-none text-sm text-gray-800 font-medium placeholder-gray-400 focus:ring-2 focus:ring-[#10A697]">
+            </div>
+
+            <div class="mb-5 text-left">
+              <label for="colegiatura" class="block mb-2 text-sm font-semibold text-gray-600">N° de colegiatura</label>
+              <input id="colegiatura" v-model="registerForm.nro_colegiatura" type="text" placeholder="123456" required
+                class="w-full px-5 py-2 bg-gray-100 rounded-lg border-none outline-none text-sm text-gray-800 font-medium placeholder-gray-400 focus:ring-2 focus:ring-[#10A697]">
+            </div>
+
+            <div class="mb-5 text-left">
+              <label for="register-correo" class="block mb-2 text-sm font-semibold text-gray-600">Correo
+                electrónico</label>
+
+              <div class="flex">
+
+                <input id="register-correo" v-model="registerForm.correo" type="text" placeholder="tu.usuario" required
+                  @input="registerForm.correo = registerForm.correo.replace(/@/g, '')"
+                  class="w-full px-5 py-2 bg-gray-100 rounded-l-lg border-none outline-none text-sm text-gray-800 font-medium placeholder-gray-400 focus:ring-2 focus:ring-[#10A697] focus:z-10 relative">
+
+                <span
+                  class="inline-flex items-center px-3 text-sm text-gray-700 bg-gray-200 border border-l-0 border-gray-200 rounded-r-lg">
+                  @citasalud.com
+                </span>
+              </div>
+            </div>
+
+            <div class="mb-5 text-left">
+              <label for="register-celular" class="block mb-2 text-sm font-semibold text-gray-600">Celular</label>
+              <input id="register-celular" v-model="registerForm.telefono" type="tel" placeholder="987654321" required
+                class="w-full px-5 py-2 bg-gray-100 rounded-lg border-none outline-none text-sm text-gray-800 font-medium placeholder-gray-400 focus:ring-2 focus:ring-[#10A697]">
+            </div>
+
+            <div class="mb-5 text-left">
+              <label for="register-contrasena" class="block mb-2 text-sm font-semibold text-gray-600">Contraseña</label>
+              <input id="register-contrasena" v-model="registerForm.contrasena" type="password"
+                placeholder="Crea una contraseña" required
+                class="w-full px-5 py-2 bg-gray-100 rounded-lg border-none outline-none text-sm text-gray-800 font-medium placeholder-gray-400 focus:ring-2 focus:ring-[#10A697]">
+            </div>
+
+            <div class="mb-5 text-left">
+              <label for="contrasena-confirmar" class="block mb-2 text-sm font-semibold text-gray-600">Confirmar
+                contraseña</label>
+              <input id="contrasena-confirmar" v-model="registerForm.contrasenaConfirmar" type="password"
+                placeholder="Confirma tu contraseña" required
+                class="w-full px-5 py-2 bg-gray-100 rounded-lg border-none outline-none text-sm text-gray-800 font-medium placeholder-gray-400 focus:ring-2 focus:ring-[#10A697]">
+            </div>
+
+            <div class="input-box text-left">
+              <label for="especialidad" class="block mb-2 text-sm font-semibold text-gray-600">
+                Especialidad
+              </label>
+              <select id="especialidad" v-model="registerForm.especialidad" required>
+                <option value="" disabled>Seleccione su especialidad</option>
+                <option v-for="esp in especialidades" :key="esp.id_especialidad" :value="esp.id_especialidad">
+                  {{ esp.nombre }}
+                </option>
+              </select>
+              <p v-if="cargando" class="text-sm text-gray-500 mt-1">Cargando especialidades...</p>
+              <p v-if="error" class="text-sm text-red-600 mt-1">{{ error }}</p>
+            </div>
+
+            <div class="input-box text-left">
+              <label for="centro_medico" class="block mb-2 text-sm font-semibold text-gray-600">
+                Centros médicos
+              </label>
+              <select id="centro_medico" v-model="registerForm.centro" required>
+                <option value="" disabled>Seleccione su centro médico</option>
+                <option v-for="cen in centros" :key="cen.id_centro_medico" :value="cen.id_centro_medico">
+                  {{ cen.nombre_centro_medico }}
+                </option>
+              </select>
+              <p v-if="cargando" class="text-sm text-gray-500 mt-1">Cargando centros médicos...</p>
+              <p v-if="error" class="text-sm text-red-600 mt-1">{{ error }}</p>
+            </div>
+
+          </div>
+          <div class="flex-shrink-0">
+            <div v-if="errorMessage"
+              class="my-2.5 p-3 bg-red-100 text-red-700 border border-red-300 rounded-md text-sm text-center break-words z-10 relative">
+              {{ errorMessage }}
+            </div>
+
+            <button type="submit" :disabled="loading"
+              class="w-full mt-2 h-10 bg-[#10A697] text-white rounded-lg shadow-sm text-base font-semibold transition-opacity duration-300 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed">
+              <span v-if="loading">Cargando...</span>
+              <span v-else>Registrarse</span>
+            </button>
           </div>
 
-          <!-- Input contraseña -->
-          <div class="mb-5 text-left">
-            <label for="register-contrasena" class="block mb-2 text-sm font-semibold text-gray-600">Contraseña</label>
-            <input id="register-contrasena" v-model="registerForm.contrasena" type="password"
-              placeholder="Crea una contraseña" required
-              class="w-full px-5 py-2 bg-gray-100 rounded-lg border-none outline-none text-sm text-gray-800 font-medium placeholder-gray-400 focus:ring-2 focus:ring-[#10A697]">
-          </div>
-
-          <!-- Input confirmar contraseña -->
-          <div class="mb-5 text-left">
-            <label for="contrasena-confirmar" class="block mb-2 text-sm font-semibold text-gray-600">Confirmar
-              contraseña</label>
-            <input id="contrasena-confirmar" v-model="registerForm.contrasenaConfirmar" type="password"
-              placeholder="Confirma tu contraseña" required
-              class="w-full px-5 py-2 bg-gray-100 rounded-lg border-none outline-none text-sm text-gray-800 font-medium placeholder-gray-400 focus:ring-2 focus:ring-[#10A697]">
-          </div>
-
-          <!-- 9. Select (Enfoque Híbrido) -->
-          <!-- Usamos .input-box aquí para re-utilizar el estilo del <select> del CSS original -->
-          <div class="input-box text-left">
-            <label for="especialidad" class="block mb-2 text-sm font-semibold text-gray-600">Especialidad</label>
-            <select id="especialidad" v-model="registerForm.especialidad" required>
-              <option value="" disabled>Seleccione su especialidad</option>
-              <option value="1">Medicina general</option>
-              <option value="2">Pediatría</option>
-              <option value="3">Dermatología</option>
-            </select>
-          </div>
-
-          <!-- Mensaje de error -->
-          <div v-if="errorMessage"
-            class="my-2.5 p-3 bg-red-100 text-red-700 border border-red-300 rounded-md text-sm text-center break-words z-10 relative">
-            {{ errorMessage }}
-          </div>
-
-          <!-- Botón de registro -->
-          <button type="submit" :disabled="loading"
-            class="w-full mt-2 h-10 bg-[#10A697] text-white rounded-lg shadow-sm text-base font-semibold transition-opacity duration-300 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed">
-            <span v-if="loading">Cargando...</span>
-            <span v-else>Registrarse</span>
-          </button>
         </form>
       </div>
 
