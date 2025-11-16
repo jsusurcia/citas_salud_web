@@ -3,18 +3,18 @@ import apiClient from './auth.js'
 // Función para obtener todas las especialidades
 export const getEspecialidadesApi = async () => {
   try {
-    console.log('🔍 Obteniendo especialidades del backend...')
+    //console.log('🔍 Obteniendo especialidades del backend...')
     const res = await apiClient.get('/especialidades/')
     
     // El backend devuelve ItemListResponse:
     // { status: "success", message: "...", data: [...] }
-    console.log('✅ Respuesta de especialidades:', res.data)
+    //console.log('✅ Respuesta de especialidades:', res.data)
     
     const response = res.data
     
     // Verificar estructura ItemResponse
     if (response.status === 'success' && Array.isArray(response.data)) {
-      console.log('✅ Formato ItemListResponse correcto')
+      //console.log('✅ Formato ItemListResponse correcto')
       return response.data
     } else if (Array.isArray(response)) {
       // Si viene como array directo
@@ -57,22 +57,22 @@ export const getEspecialidadesApi = async () => {
 // Función para crear una nueva especialidad
 export const createEspecialidadApi = async (especialidadData) => {
   try {
-    console.log('➕ Creando especialidad:', especialidadData)
+    //console.log('➕ Creando especialidad:', especialidadData)
     const res = await apiClient.post('/especialidades/', especialidadData)
     
     // El backend devuelve ItemResponse:
     // { status: "success", message: "...", data: {...} }
-    console.log('✅ Respuesta de creación:', res.data)
+    //console.log('✅ Respuesta de creación:', res.data)
     
     const response = res.data
     
     // Verificar estructura ItemResponse
     if (response.status === 'success' && response.data) {
-      console.log('✅ Formato ItemResponse correcto')
+      //console.log('✅ Formato ItemResponse correcto')
       return response.data
     } else if (response.id_especialidad || response.id) {
       // Si viene como objeto directo
-      console.log('⚠️ Formato directo (objeto)')
+      console.warn('⚠️ Formato directo (objeto)')
       return response
     } else {
       console.error('❌ Formato de respuesta inesperado:', response)
@@ -110,22 +110,22 @@ export const createEspecialidadApi = async (especialidadData) => {
 
 export const updateEspecialidadApi = async (especialidadId, especialidadData) => {
   try {
-    console.log('✏️ Actualizando especialidad:', { especialidadId, especialidadData })
+    //console.log('✏️ Actualizando especialidad:', { especialidadId, especialidadData })
     const res = await apiClient.put(`/especialidades/${especialidadId}`, especialidadData)
     
     // El backend devuelve ItemResponse:
     // { status: "success", message: "...", data: {...} }
-    console.log('✅ Respuesta de actualización:', res.data)
+    //console.log('✅ Respuesta de actualización:', res.data)
     
     const response = res.data
     
     // Verificar estructura ItemResponse
     if (response.status === 'success' && response.data) {
-      console.log('✅ Formato ItemResponse correcto')
+      //console.log('✅ Formato ItemResponse correcto')
       return response.data
     } else if (response.id_especialidad || response.id) {
       // Si viene como objeto directo
-      console.log('⚠️ Formato directo (objeto)')
+      console.warn('⚠️ Formato directo (objeto)')
       return response
     } else {
       console.error('❌ Formato de respuesta inesperado:', response)
@@ -164,7 +164,7 @@ export const updateEspecialidadApi = async (especialidadId, especialidadData) =>
 // Función para actualizar el estado (habilitar/deshabilitar) de una especialidad
 export const updateEstadoEspecialidadApi = async (especialidadId, estado) => {
   try {
-    console.log('🔄 Actualizando estado de especialidad:', { especialidadId, estado })
+    //console.log('🔄 Actualizando estado de especialidad:', { especialidadId, estado })
     
     // El backend espera: PATCH /especialidades/{especialidad_id}/estado
     // Con body: { estado: boolean } envuelto en EspecialidadEstadoUpdate
@@ -173,17 +173,17 @@ export const updateEstadoEspecialidadApi = async (especialidadId, estado) => {
     
     // El backend devuelve ItemResponse:
     // { status: "success", message: "...", data: {...} }
-    console.log('✅ Respuesta de actualización de estado:', res.data)
+    //console.log('✅ Respuesta de actualización de estado:', res.data)
     
     const response = res.data
     
     // Verificar estructura ItemResponse
     if (response.status === 'success' && response.data) {
-      console.log('✅ Formato ItemResponse correcto')
+      //console.log('✅ Formato ItemResponse correcto')
       return response.data
     } else if (response.id_especialidad || response.id) {
       // Si viene como objeto directo
-      console.log('⚠️ Formato directo (objeto)')
+      console.warn('⚠️ Formato directo (objeto)')
       return response
     } else {
       console.error('❌ Formato de respuesta inesperado:', response)
@@ -222,10 +222,10 @@ export const updateEstadoEspecialidadApi = async (especialidadId, estado) => {
 // Función para eliminar una especialidad
 export const deleteEspecialidadApi = async (especialidadId) => {
   try {
-    console.log('🗑️ Eliminando especialidad:', especialidadId)
+    //console.log('🗑️ Eliminando especialidad:', especialidadId)
     const res = await apiClient.delete(`/especialidades/${especialidadId}`)
 
-    console.log('✅ Respuesta de eliminación:', res.data)
+    //console.log('✅ Respuesta de eliminación:', res.data)
 
     const response = res.data
 
