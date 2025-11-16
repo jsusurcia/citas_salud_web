@@ -75,7 +75,8 @@ onMounted(() => {
 const closeModal = () => {
   activeModal.value = null
   selectedEspecialidad.value = null // Limpiamos la selección al cerrar
-  // No limpiamos errorMessage aquí para que se vea si hay un error al crear
+  // Limpiar el mensaje de error al cerrar el modal
+  errorMessage.value = ''
 };
 
 const openAddModal = () => {
@@ -380,7 +381,9 @@ const handleDelete = async () => {
     console.log('🗑️ Eliminando especialidad...', { especialidadId })
     await deleteEspecialidadApi(especialidadId)
 
+    // Si llegamos aquí, la eliminación fue exitosa
     closeModal()
+    errorMessage.value = '' // Limpiar errores previos
     await loadEspecialidades()
     console.log('✅ Especialidad eliminada exitosamente')
   } catch (error) {
@@ -388,18 +391,31 @@ const handleDelete = async () => {
 
     let errorMsg = 'Error al eliminar la especialidad'
 
-    if (error.response?.status === 404) {
+    // Manejar errores específicos del backend
+    if (error.detail) {
+      // El backend devuelve el mensaje en error.detail (desde el interceptor de auth.js)
+      errorMsg = error.detail
+    } else if (error.response?.status === 404) {
       errorMsg = 'Especialidad no encontrada'
+    } else if (error.response?.status === 400) {
+      // Error 400: La especialidad tiene relaciones (doctores o citas asociadas)
+      errorMsg = error.response?.data?.detail || 'No se puede eliminar la especialidad porque tiene relaciones activas.'
     } else if (error.response?.status === 403) {
       errorMsg = 'No tienes permisos para eliminar especialidades. Solo los administradores pueden realizar esta acción.'
-    } else if (error.detail) {
-      errorMsg = error.detail
     } else if (error.message) {
       errorMsg = error.message
     }
 
     errorMessage.value = errorMsg
-    closeModal()
+    
+    // No cerrar el modal si hay un error 400 (tiene relaciones)
+    // para que el usuario vea el mensaje detallado del backend
+    if (error.response?.status === 400) {
+      // Mantener el modal abierto para mostrar el error detallado
+      // El usuario puede cerrarlo manualmente después de leer el mensaje
+    } else {
+      closeModal()
+    }
   } finally {
     creating.value = false
   }
@@ -530,6 +546,7 @@ const handleDelete = async () => {
       title="¿Eliminar esta especialidad?" 
       description="Esta acción eliminará la especialidad de forma permanente. No podrás recuperarla luego."
       confirmLabel="Sí, eliminar"
+      :errorMessage="activeModal === 'deleteConfirm' ? errorMessage : ''"
       @confirm="handleDelete" 
       @close="closeModal" />
 

@@ -29,6 +29,10 @@ const props = defineProps({
   confirmLabel: {
     type: String,
     default: 'Confirmar'
+  },
+  errorMessage: {
+    type: String,
+    default: ''
   }
 })
 
@@ -81,6 +85,11 @@ const confirmButtonClass = computed(() => buttonColors[props.type])
             <h3 class="text-lg font-bold text-gray-800 mb-2">{{ title }}</h3>
 
             <p class="text-sm text-gray-600 mb-6">{{ description }}</p>
+
+            <!-- Mensaje de error -->
+            <div v-if="errorMessage" class="w-full mb-4 p-3 bg-red-100 border border-red-300 text-red-700 rounded-md text-sm text-center">
+              {{ errorMessage }}
+            </div>
 
             <!-- Botones -->
             <div class="flex justify-center gap-3 w-full">
