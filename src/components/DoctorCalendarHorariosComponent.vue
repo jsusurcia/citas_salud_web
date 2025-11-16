@@ -1,22 +1,10 @@
 <template>
   <div class="calendario-container">
-    <vue-cal
-      :time-from="7 * 60"
-      :time-to="22 * 60"
-      :time-step="30"
-      :snap-to-time="30"
-      active-view="week"
-      :disable-views="['years', 'month']"
-      :editable-events="{ title: false, drag: true, resize: true, create: true }"
-      style="height: 600px"
-      locale="es"
-      :events="eventosDelCalendario"
-      @event-create="crearHorario"
-      @event-drag-create="crearHorario"
-      @event-resize="actualizarHorario"
-      @event-drop="actualizarHorario"
-      @event-click="confirmarEliminacion"
-    />
+    <vue-cal :time-from="7 * 60" :time-to="22 * 60" :time-step="30" :snap-to-time="30" active-view="week"
+      :disable-views="['years', 'month']" :editable-events="{ title: false, drag: true, resize: true, create: true }"
+      style="height: 600px" locale="es" :events="eventosDelCalendario" @event-create="crearHorario"
+      @event-drag-create="crearHorario" @event-resize="actualizarHorario" @event-drop="actualizarHorario"
+      @event-click="confirmarEliminacion" />
   </div>
 </template>
 
@@ -35,10 +23,10 @@ const emits = defineEmits(['crear-horario', 'actualizar-horario', 'eliminar-hora
 const eventosDelCalendario = computed(() => {
   console.log(`%c--- (ECO) COMPUTED: Recalculando eventos. Total: ${props.horarios.length} ---`, 'color: #28a745');
   return props.horarios.map(horario => ({
-    id: horario.id_horario, 
+    id: horario.id_horario,
     start: `${horario.fecha} ${horario.hora_inicio.substring(0, 5)}`,
     end: `${horario.fecha} ${horario.hora_fin.substring(0, 5)}`,
-    title: horario.en_centro_medico ? 'En posta' : 'Visita',
+    title: horario.en_centro_medico ? 'En centro médico' : 'Visita',
     class: horario.en_centro_medico ? 'bloque-disponible' : 'bloque-visita'
   }))
 })
@@ -73,7 +61,7 @@ const emitirCreacion = (fecha, hora_inicio, hora_fin) => {
     hora_inicio: hora_inicio,
     hora_fin: hora_fin
   }
-  
+
   console.log('%c--- 5. Emitiendo @crear-horario hacia la Vista ---', 'color: #ffc107', nuevoHorarioData);
   emits('crear-horario', nuevoHorarioData)
 }
@@ -84,28 +72,28 @@ const emitirCreacion = (fecha, hora_inicio, hora_fin) => {
  */
 const crearHorario = (event) => {
   console.log('%c--- 1. @event-create / @event-drag-create disparado ---', 'color: #007bff', event);
-  
+
   let inicio, fin;
 
   // CASO A: FUE UN ARRASTRE (@event-drag-create)
   if (event.start && event.end) {
     console.log('%c--- 2. Detectado: DRAG (Formato A) ---', 'color: #17a2b8');
-    inicio = new Date(event.start); 
+    inicio = new Date(event.start);
     fin = new Date(event.end);
 
-  // CASO B: FUE UN ARRASTRE (@event-create)
+    // CASO B: FUE UN ARRASTRE (@event-create)
   } else if (event.event && event.event.start && event.event.end) {
     console.log('%c--- 2. Detectado: DRAG (Formato B) ---', 'color: #17a2b8');
     inicio = new Date(event.event.start);
     fin = new Date(event.event.end);
 
-  // CASO C: FUE UN CLIC SIMPLE
+    // CASO C: FUE UN CLIC SIMPLE
   } else if (event.cursor?.date) {
     console.log('%c--- 2. Detectado: CLIC (Formato C) ---', 'color: #17a2b8');
     inicio = new Date(event.cursor.date);
     fin = new Date(inicio.getTime() + 30 * 60 * 1000); // +30min
-  
-  // CASO D: FALLO
+
+    // CASO D: FALLO
   } else {
     console.error('--- ERROR: Formato de evento de creación desconocido ---', event);
     return;
@@ -132,7 +120,7 @@ const crearHorario = (event) => {
   console.log(`     ✅ Fecha: ${fecha}, Inicio: ${hora_inicio}, Fin: ${hora_fin}`);
 
   emitirCreacion(fecha, hora_inicio, hora_fin);
-  return event; 
+  return event;
 };
 
 
@@ -143,7 +131,7 @@ const actualizarHorario = (event) => {
   const inicio = new Date(event.event.start);
   const fin = new Date(event.event.end);
   const id = event.event.id;
-  
+
   // --- ¡NUEVO PASO DE AJUSTE! ---
   const inicioAjustado = ajustarFecha(inicio, 30);
   const finAjustado = ajustarFecha(fin, 30);
@@ -157,7 +145,7 @@ const actualizarHorario = (event) => {
     hora_inicio: getHora(inicioAjustado),
     hora_fin: getHora(finAjustado)
   }
-  
+
   console.log(`%c--- 3. Emitiendo @actualizar-horario (ID=${id}) ---`, 'color: #ffc107', cambios);
   emits('actualizar-horario', id, cambios)
 }
@@ -169,11 +157,10 @@ const confirmarEliminacion = (event) => {
   const inicio = new Date(event.event.start);
   const fin = new Date(event.event.end);
   const id = event.event.id;
-  
+
   if (confirm(`¿Estás seguro de que quieres eliminar este horario?\n\n` +
-               `Día: ${getFecha(inicio)}\n` +
-               `Hora: ${getHora(inicio)} - ${getHora(fin)}`)) 
-  {
+    `Día: ${getFecha(inicio)}\n` +
+    `Hora: ${getHora(inicio)} - ${getHora(fin)}`)) {
     console.log(`%c--- Emitiendo @eliminar-horario (ID=${id}) ---`, 'color: #ffc107');
     emits('eliminar-horario', id)
   }
@@ -181,42 +168,42 @@ const confirmarEliminacion = (event) => {
 </script>
 
 <style>
-  /* Estilo para los bloques en posta (verde) */
-  .vuecal__event.bloque-disponible {
-    background-color: rgba(25, 135, 84, 0.8);
-    border: 1px solid rgb(21, 115, 71);
-    color: #fff;
-    cursor: pointer;
-  }
+/* Estilo para los bloques en posta (verde) */
+.vuecal__event.bloque-disponible {
+  background-color: rgba(25, 135, 84, 0.8);
+  border: 1px solid rgb(21, 115, 71);
+  color: #fff;
+  cursor: pointer;
+}
 
-  /* Estilo para los bloques de visita (azul) */
-  .vuecal__event.bloque-visita {
-    background-color: rgba(54, 110, 199, 0.8);
-    border: 1px solid rgb(40, 83, 148);
-    color: #fff;
-    cursor: pointer;
-  }
+/* Estilo para los bloques de visita (azul) */
+.vuecal__event.bloque-visita {
+  background-color: rgba(54, 110, 199, 0.8);
+  border: 1px solid rgb(40, 83, 148);
+  color: #fff;
+  cursor: pointer;
+}
 
-  /* Estilos generales del calendario (los tuyos) */
-  .vuecal {
-    --vuecal-primary-color: #4785a1;
-  }
+/* Estilos generales del calendario (los tuyos) */
+.vuecal {
+  --vuecal-primary-color: #4785a1;
+}
 
-  .vuecal__arrow,
-  .vuecal__title-bar {
-    color: white;
-  }
+.vuecal__arrow,
+.vuecal__title-bar {
+  color: white;
+}
 
-  .vuecal__arrow:hover {
-    color: #c93533;
-  }
+.vuecal__arrow:hover {
+  color: #c93533;
+}
 
-  .vuecal__header .vuecal__title-bar {
-    border-bottom: none;
-  }
+.vuecal__header .vuecal__title-bar {
+  border-bottom: none;
+}
 
-  .vuecal__weekdays {
-    background-color: #4785a1;
-    color: #fff;
-  }
+.vuecal__weekdays {
+  background-color: #4785a1;
+  color: #fff;
+}
 </style>

@@ -47,7 +47,8 @@ export const useHorarioStore = defineStore("horario", {
         // 'horarioData' NO debe incluir 'id_personal_especialidad'
         const nuevoHorario = await createDisponibilidadApi(horarioData)
         // Añade el nuevo horario al estado local
-        this.horarios.push(nuevoHorario) 
+        //this.horarios.push(nuevoHorario) 
+          this.horarios.push(...nuevoHorario)
       } catch (err) {
         this.error = err.detail || "Error al crear el horario"
         throw err // Lanza el error para que el formulario lo sepa
@@ -74,21 +75,33 @@ export const useHorarioStore = defineStore("horario", {
       }
     },
 
-    // (Opcional) Acción para actualizar
+    // Acción para actualizar
     async updateHorario(horarioId, horarioData) {
       this.isLoading = true
       this.error = null
       try {
+        // --- PASO 1: SER NO-OPTIMISTA ---
+        // Llamamos a la API *primero*, antes de tocar el estado.
+        // 'horarioData' es el payload completo que armamos en la vista.
         const horarioActualizado = await updateDisponibilidadApi(horarioId, horarioData)
         
-        // Busca el índice y reemplaza el horario en el estado local
+        // --- PASO 2: MUTAR, NO REEMPLAZAR ---
+        // Buscamos el objeto original en nuestro estado.
         const index = this.horarios.findIndex(h => h.id_horario === horarioId)
+        
         if (index !== -1) {
-          this.horarios[index] = horarioActualizado
+          // ¡ESTA ES LA MAGIA!
+          // No hacemos: this.horarios[index] = horarioActualizado (¡MAL!)
+          
+          // Hacemos: Mutamos el objeto existente con los datos del objeto actualizado.
+          // Object.assign(target, source)
+          Object.assign(this.horarios[index], horarioActualizado);
         }
 
       } catch (err) {
         this.error = err.detail || "Error al actualizar el horario"
+        // Si falla, forzamos una recarga para no tener datos corruptos
+        this.fetchHorarios(); 
         throw err
       } finally {
         this.isLoading = false

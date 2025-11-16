@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/authStore'
 import ConfirmModalComponent from './ConfirmModalComponent.vue'
@@ -17,37 +17,42 @@ const authStore = useAuthStore()
 // Estado del modal de confirmación
 const showLogoutModal = ref(false)
 
+const centroMedico = computed(() => authStore.centroMedico)
+onMounted(() => {
+    authStore.fetchCentroMedico()
+})
+
 // Obtener usuario del store
 const user = computed(() => {
-  if (authStore.user) {
-    return {
-      userName: authStore.user.nombre || authStore.user.nombres || authStore.user.name || 'Usuario',
-      userEmail: authStore.user.correo || authStore.user.email || ''
+    if (authStore.user) {
+        return {
+            userName: authStore.user.nombre || authStore.user.nombres || authStore.user.name || 'Usuario',
+            userEmail: authStore.user.correo || authStore.user.email || ''
+        }
     }
-  }
-  return {
-    userName: 'Usuario',
-    userEmail: ''
-  }
+    return {
+        userName: 'Usuario',
+        userEmail: ''
+    }
 })
 
 // Función para abrir modal de confirmación
 const handleLogout = () => {
-  showLogoutModal.value = true
+    showLogoutModal.value = true
 }
 
 // Función para cerrar el modal
 const closeLogoutModal = () => {
-  showLogoutModal.value = false
+    showLogoutModal.value = false
 }
 
 // Función para confirmar y cerrar sesión
 const confirmLogout = () => {
-  console.log('🚪 Cerrando sesión...')
-  authStore.logout()
-  router.push('/auth')
-  console.log('✅ Sesión cerrada')
-  showLogoutModal.value = false
+    console.log('🚪 Cerrando sesión...')
+    authStore.logout()
+    router.push('/auth')
+    console.log('✅ Sesión cerrada')
+    showLogoutModal.value = false
 }
 </script>
 
@@ -64,22 +69,22 @@ const confirmLogout = () => {
                     </button>
                     <a href="#" class="flex ms-2 md:me-24">
                         <img src="/img/citas_salud_logo.png" class="h-8 me-3" alt="citas_salud_logo" />
-                        <span class="self-center text-xl font-semibold sm:text-2xl whitespace-nowrap">CitasSalud</span>
+                        <span class="self-center text-xl font-semibold sm:text-2xl whitespace-nowrap">CitaSalud</span>
                     </a>
                 </div>
                 <div class="flex items-center">
                     <div class="flex items-center ms-3 space-x-5">
+                        <div v-if="centroMedico" class="text-sm font-medium text-gray-700 hidden sm:block"
+                            title="Centro Médico">
+                            {{ centroMedico }}
+                        </div>
                         <div class="rounded-lg hover:bg-gray-100 p-2">
                             <button type="button">
                                 <font-awesome-icon :icon="['far', 'bell']" />
                             </button>
                         </div>
                         <div class="rounded-lg hover:bg-gray-100 p-2">
-                            <button 
-                                type="button" 
-                                class="text-red-600"
-                                @click="handleLogout"
-                                title="Cerrar sesión">
+                            <button type="button" class="text-red-600" @click="handleLogout" title="Cerrar sesión">
                                 <font-awesome-icon :icon="['fas', 'arrow-right-from-bracket']" />
                             </button>
                         </div>
@@ -121,16 +126,10 @@ const confirmLogout = () => {
     </nav>
 
     <!-- Modal de confirmación para cerrar sesión -->
-    <ConfirmModalComponent 
-      :isOpen="showLogoutModal" 
-      type="warning"
-      title="¿Cerrar sesión?" 
-      description="¿Estás seguro de que deseas cerrar sesión? Tendrás que iniciar sesión nuevamente para acceder al sistema."
-      confirmLabel="Sí, cerrar sesión"
-      @confirm="confirmLogout" 
-      @close="closeLogoutModal" />
+    <ConfirmModalComponent :isOpen="showLogoutModal" type="warning" title="¿Cerrar sesión?"
+        description="¿Estás seguro de que deseas cerrar sesión? Tendrás que iniciar sesión nuevamente para acceder al sistema."
+        confirmLabel="Sí, cerrar sesión" @confirm="confirmLogout" @close="closeLogoutModal" />
 </template>
 
 
-<style scoped>
-</style>
+<style scoped></style>

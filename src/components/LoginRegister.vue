@@ -104,7 +104,7 @@ const handleLogin = async () => {
 
   try {
     // 1. LLAMAR A LA API DE LOGIN (que ahora devuelve 'status')
-    
+
     console.log("comprobando ando")
     console.log(loginForm.correo)
 
@@ -200,10 +200,10 @@ const handleRegister = async () => {
 
   try {
     const namePartsForLogic = [...nameParts]
-    
+
     const apellido_materno = namePartsForLogic.pop() || ''
     const apellido_paterno = namePartsForLogic.pop() || ''
-    
+
     const nombres = namePartsForLogic.join(' ')
 
     const userData = {
@@ -266,7 +266,7 @@ const handleForgotPassword = () => {
             <label for="login-correo" class="block mb-2 text-sm font-semibold text-gray-600">Correo electrónico</label>
             <div class="flex">
 
-              <input id="login-correo" v-model="loginForm.correo" type="text" placeholder="tu.usuario" required
+              <input id="login-correo" v-model="loginForm.correo" type="text" placeholder="usuario" required
                 @input="loginForm.correo = loginForm.correo.replace(/@/g, '')"
                 class="w-full px-5 py-2 bg-gray-100 rounded-l-lg border-none outline-none text-sm text-gray-800 font-medium placeholder-gray-400 focus:ring-2 focus:ring-[#10A697] focus:z-10 relative">
 
@@ -345,19 +345,21 @@ const handleForgotPassword = () => {
               <label for="nombre-completo" class="block mb-2 text-sm font-semibold text-gray-600">Nombre
                 completo</label>
               <input id="nombre-completo" v-model="registerForm.nombreCompleto" type="text"
-                placeholder="Tu nombre completo" required
+                placeholder="Ingrese su nombre completo" required
                 class="w-full px-5 py-2 bg-gray-100 rounded-lg border-none outline-none text-sm text-gray-800 font-medium placeholder-gray-400 focus:ring-2 focus:ring-[#10A697]">
             </div>
 
             <div class="mb-5 text-left">
               <label for="documento" class="block mb-2 text-sm font-semibold text-gray-600">N° de documento</label>
-              <input id="documento" v-model="registerForm.nro_documento" type="text" placeholder="70152088" required
+              <input id="documento" v-model="registerForm.nro_documento" type="text"
+                placeholder="Ingrese su nro. de documento" required
                 class="w-full px-5 py-2 bg-gray-100 rounded-lg border-none outline-none text-sm text-gray-800 font-medium placeholder-gray-400 focus:ring-2 focus:ring-[#10A697]">
             </div>
 
             <div class="mb-5 text-left">
               <label for="colegiatura" class="block mb-2 text-sm font-semibold text-gray-600">N° de colegiatura</label>
-              <input id="colegiatura" v-model="registerForm.nro_colegiatura" type="text" placeholder="123456" required
+              <input id="colegiatura" v-model="registerForm.nro_colegiatura" type="text" placeholder="Ingrese el CMP"
+                required
                 class="w-full px-5 py-2 bg-gray-100 rounded-lg border-none outline-none text-sm text-gray-800 font-medium placeholder-gray-400 focus:ring-2 focus:ring-[#10A697]">
             </div>
 
@@ -367,7 +369,7 @@ const handleForgotPassword = () => {
 
               <div class="flex">
 
-                <input id="register-correo" v-model="registerForm.correo" type="text" placeholder="tu.usuario" required
+                <input id="register-correo" v-model="registerForm.correo" type="text" placeholder="usuario" required
                   @input="registerForm.correo = registerForm.correo.replace(/@/g, '')"
                   class="w-full px-5 py-2 bg-gray-100 rounded-l-lg border-none outline-none text-sm text-gray-800 font-medium placeholder-gray-400 focus:ring-2 focus:ring-[#10A697] focus:z-10 relative">
 
