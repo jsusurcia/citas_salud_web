@@ -120,7 +120,8 @@ router.beforeEach((to, from, next) => {
     const authStore = useAuthStore()
     
     // Rutas públicas (no requieren autenticación)
-    const publicRoutes = ['/auth']
+    //const publicRoutes = ['/auth']
+    const publicRoutes = ['/auth', '/pendiente']
     
     // Si la ruta es pública, permitir acceso
     if (publicRoutes.includes(to.path)) {

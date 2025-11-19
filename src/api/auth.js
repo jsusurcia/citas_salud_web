@@ -124,6 +124,15 @@ export const loginApi = async (correo, clave) => {
       }
     }
 
+    if (status === 'requires_validation') {
+      // --- CASO X: Requiere validación por parte del administrador
+      console.log('👨‍💼 Login personal médico (Caso X) requiere validación.')
+      return {
+        status: 'requires_validation',
+        data: data
+      }
+    }
+
     if (status === 'requires_selection') {
       // --- CASO 2: Se requiere selección de especialidad ---
       console.log('👨‍⚕️ Login personal médico (Caso 2) requiere selección.')
