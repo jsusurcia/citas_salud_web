@@ -9,7 +9,7 @@ import ConfirmModalComponent from '../components/ConfirmModalComponent.vue';
 import LoaderComponent from '../components/LoaderComponent.vue';
 
 // Importar API
-import { getPendientesApi, getAprobadosHoyApi, getRechazadosHoyApi, getSolicitudesPendientesApi } from '../api/admin_validaciones';
+import { getPendientesApi, getAprobadosHoyApi, getRechazadosHoyApi, getSolicitudesPendientesApi, aprobarSolicitudApi } from '../api/admin_validaciones';
 
 // Array de personales pendientes para la tabla
 const personales = ref([])
@@ -29,31 +29,18 @@ const filterPersonal = computed(() => {
 // Configuración para los modales
 const activeModal = ref(null);
 const selectedPersonal = ref(null);
+const creating = ref(false); // Estado de carga para operaciones
 
 const openConfirmModal = (personal, action) => {
     selectedPersonal.value = personal;
     activeModal.value = action;
+    errorMessage.value = ''; // Limpiar errores previos
 };
 const closeModal = () => {
     selectedPersonal.value = null;
     activeModal.value = null;
+    errorMessage.value = ''; // Limpiar errores al cerrar
 };
-const handleConfirmAction = () => {
-    if (!selectedPersonal.value) return;
-    
-    const action = activeModal.value;
-    const personal = selectedPersonal.value;
-
-    if (action === 'aprobado') {
-        personal.estado = 'Aprobado';
-    } else if (action === 'rechazado') {
-        personal.estado = 'Rechazado';
-    } else if (action === 'baja') {
-        personal.estado = 'Rechazado';
-    }
-
-    closeModal();
-}
 
 // Método de carga inicial de KPIs
 const pendientes = ref(0)
@@ -106,6 +93,61 @@ const loadSolicitudesPendientes = async () => {
         loading.value = false
     }
 }
+
+// Método para aprobar una solicitud
+const handleApproveRequest = async () => {
+    if (!selectedPersonal.value) return;
+    
+    creating.value = true;
+    errorMessage.value = '';
+    
+    try {
+        const idPersonalEspecialidad = selectedPersonal.value.id;
+        
+        console.log('✅ Aprobando solicitud...', { idPersonalEspecialidad });
+        
+        // Llamar a la API para aprobar la solicitud
+        await aprobarSolicitudApi(idPersonalEspecialidad, 'aprobado');
+        
+        console.log('✅ Solicitud aprobada exitosamente');
+        
+        // Cerrar el modal
+        closeModal();
+        
+        // Recargar los datos para reflejar los cambios
+        await Promise.all([
+            loadKPIs(),                    // Actualizar KPIs
+            loadSolicitudesPendientes()    // Actualizar la tabla
+        ]);
+        
+    } catch (error) {
+        console.error('❌ Error al aprobar solicitud:', error);
+        
+        // Mostrar mensaje de error más específico
+        let errorMsg = 'Error al aprobar la solicitud';
+        
+        if (error.response?.status === 404) {
+            errorMsg = 'Solicitud no encontrada';
+        } else if (error.response?.status === 403) {
+            errorMsg = 'No tienes permisos para aprobar solicitudes. Solo los administradores pueden realizar esta acción.';
+        } else if (error.detail) {
+            errorMsg = error.detail;
+        } else if (error.message) {
+            errorMsg = error.message;
+        }
+        
+        errorMessage.value = errorMsg;
+    } finally {
+        creating.value = false;
+    }
+};
+
+// Método para rechazar una solicitud (placeholder - implementar cuando esté lista la API)
+const handleRejectRequest = async () => {
+    console.warn('⚠️ Función de rechazar solicitud aún no implementada');
+    errorMessage.value = 'La funcionalidad de rechazar solicitudes aún no está implementada.';
+    closeModal();
+};
 
 onMounted(() => {
     loadKPIs()
@@ -201,6 +243,28 @@ onMounted(() => {
                     </table>
                 </div>
             </div>
+
+            <!--Modal de confirmación para aprobar la solicitud-->
+            <ConfirmModalComponent 
+                :isOpen="activeModal === 'aprobado'" 
+                type="success"
+                title="¿Aprobar esta solicitud?" 
+                description="Esta acción aprobará la solicitud del personal médico. El personal podrá acceder al sistema después de la aprobación."
+                confirmLabel="Sí, aprobar"
+                :errorMessage="activeModal === 'aprobado' ? errorMessage : ''"
+                @confirm="handleApproveRequest" 
+                @close="closeModal" />
+
+            <!--Modal de confirmación para rechazar la solicitud-->
+            <ConfirmModalComponent 
+                :isOpen="activeModal === 'rechazado'" 
+                type="danger"
+                title="¿Rechazar esta solicitud?" 
+                description="Esta acción rechazará la solicitud de forma permanente. No podrás recuperarla luego."
+                confirmLabel="Sí, rechazar"
+                :errorMessage="activeModal === 'rechazado' ? errorMessage : ''"
+                @confirm="handleRejectRequest" 
+                @close="closeModal" />
         </div>
     </LayoutComponent>
 </template>

@@ -78,3 +78,24 @@ export const getSolicitudesPendientesApi = async () => {
         throw error.response?.data || { detail: error.message || 'Error al conectar' }
     }
 }
+
+//Función para aprobar una solicitud
+export const aprobarSolicitudApi = async (idPersonalEspecialidad, estado) => {
+    try {
+        // El ID se interpola en la URL usando template literals
+        const res = await apiClient.post(`/administrador/validar_personal/${idPersonalEspecialidad}`)
+        const response = res.data
+
+        if (response.status === 'success' && response.data) {
+            return response.data
+        } else if (response.status === 'success') {
+            // Si solo viene el status sin data
+            return response
+        } else {
+            throw { detail: 'Formato de respuesta inesperado del servidor' }
+        }
+    } catch (error) {
+        console.error('Error al aprobar/rechazar solicitud:', error)
+        throw error.response?.data || { detail: error.message || 'Error al conectar' }
+    }
+}
