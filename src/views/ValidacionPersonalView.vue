@@ -10,6 +10,7 @@ import LoaderComponent from '../components/LoaderComponent.vue';
 
 // Importar API
 import { getPendientesApi, getAprobadosHoyApi, getRechazadosHoyApi, getSolicitudesPendientesApi, aprobarSolicitudApi, rechazarSolicitudApi } from '../api/admin_validaciones';
+import { getEspecialidadesApi } from '../api/especialidades';
 
 // Array de personales pendientes para la tabla
 const personales = ref([])
@@ -46,9 +47,11 @@ const closeModal = () => {
 const pendientes = ref(0)
 const aprobadosHoy = ref(0)
 const rechazadosHoy = ref(0)
+const especialidades = ref([])
 const loading = ref(false)
 const errorMessage = ref('')
 
+// Método para cargar los valores de las KPIs
 const loadKPIs = async () => {
     loading.value = true
 
@@ -73,6 +76,25 @@ const loadKPIs = async () => {
     }
 }
 
+// Método para cargar las especialidades (El filtro)
+const loadEspecialidades = async () => {
+    loading.value = true
+
+    try {
+        const data = await getEspecialidadesApi()
+        especialidades.value = data.map(esp => ({
+            id: esp.id_especialidad || esp.id,
+            nombre: esp.nombre
+        }))
+    } catch (error) {
+        console.error('❌ Error al cargar especialidades:', error)
+        errorMessage.value = error.detail || error.message || 'Error al cargar las especialidades'
+    } finally {
+        loading.value = false
+    }
+}
+
+// Método para cargar las solicitudes pendientes (La tabla)
 const loadSolicitudesPendientes = async () => {
     loading.value = true
     try {
@@ -175,6 +197,7 @@ const handleRejectRequest = async () => {
 
 onMounted(() => {
     loadKPIs()
+    loadEspecialidades()
     loadSolicitudesPendientes()
 })
 </script>
@@ -203,16 +226,16 @@ onMounted(() => {
                 <div class="flex flex-col md:flex-row gap-4">
                     <div class="flex-1 md:max-w-xs">
                         <input type="text" v-model="searchName"
+                            id="searchNombrePersonal" name="searchNombrePersonal"
                             class="bg-white border border-gray-200 text-sm rounded-lg focus:ring-[#10A697] focus:border-[#10A697] block w-full px-4 py-2.5"
                             placeholder="Buscar por nombre..." />
                     </div>
                     <div class="flex-1 md:max-w-xs">
                         <select v-model="searchSpeciality"
+                            id="searchEspecialidad" name="searchEspecialidad"
                             class="bg-white border border-gray-200 text-sm rounded-lg focus:ring-[#10A697] focus:border-[#10A697] block w-full px-4 py-2.5">
                             <option value="" selected disabled>Filtrar por especialidad</option>
-                            <option value="Medicina general">Medicina general</option>
-                            <option value="Pediatría">Pediatría</option>
-                            <option value="Dermatología">Dermatología</option>
+                            <option v-for="esp in especialidades" :key="esp.id_especialidad">{{ esp.nombre }}</option>
                         </select>
                     </div>
                     <ButtonComponent type="submit" variant="primary" size="large" icon="fa-solid fa-filter" label="Filtrar" />
