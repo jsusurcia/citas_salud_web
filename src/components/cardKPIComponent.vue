@@ -1,7 +1,7 @@
 <script setup>
 defineProps({
     value: {
-        type: Number,
+        type: String,
         required: true
     },
     label: {

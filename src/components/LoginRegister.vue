@@ -139,6 +139,10 @@ const handleLogin = async () => {
       console.log('👨‍⚕️ Requiere selección de especialidad.')
       selectionData.value = result.data // <-- Guardamos los datos del Paso 2
       // No redirigimos, la UI reaccionará a 'selectionData'
+    } else if (result.status === 'requires_validation') {
+      // --- CASO X: Requiere validación por parte del administrador
+      console.log('👨‍💼 Login personal médico (Caso X) requiere validación.')
+      router.push('/pendiente')
     }
 
   } catch (error) {
