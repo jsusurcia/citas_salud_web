@@ -59,3 +59,22 @@ export const getRechazadosHoyApi = async () => {
         throw error.response?.data || { detail: error.message || 'Error al conectar' }
     }
 }
+
+//Función para mostrar las solicitudes pendientes (Tabla)
+export const getSolicitudesPendientesApi = async () => {
+    try{
+        const res = await apiClient.get('/administrador/pending_requests')
+        const response = res.data
+
+        if (response.status === 'success' && Array.isArray(response.data)) {
+            return response.data
+        } else if (Array.isArray(response.data)) {
+            return response.data
+        } else {
+            throw { detail: 'Formato de respuesta inesperado del servidor' }
+        }
+    } catch (error) {
+        console.error('Error al obtener solicitudes pendientes:', error)
+        throw error.response?.data || { detail: error.message || 'Error al conectar' }
+    }
+}

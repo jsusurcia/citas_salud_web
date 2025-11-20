@@ -8,16 +8,10 @@ import SpanComponent from '../components/SpanComponent.vue';
 import ConfirmModalComponent from '../components/ConfirmModalComponent.vue';
 
 // Importar API
-import { getPendientesApi, getAprobadosHoyApi, getRechazadosHoyApi } from '../api/admin_validaciones';
+import { getPendientesApi, getAprobadosHoyApi, getRechazadosHoyApi, getSolicitudesPendientesApi } from '../api/admin_validaciones';
 
-// Array de prueba
-const personales = ref([
-    { id: 1, nombre: 'Juan Pérez', especialidad: 'Medicina general', fechaSolicitud: '2025-10-18', estado: 'Pendiente' },
-    { id: 2, nombre: 'María González', especialidad: 'Pediatría', fechaSolicitud: '2025-10-17', estado: 'Pendiente' },
-    { id: 3, nombre: 'Carlos Rodríguez', especialidad: 'Dermatología', fechaSolicitud: '2025-10-16', estado: 'Aprobado' },
-    { id: 4, nombre: 'Ana Martínez', especialidad: 'Medicina general', fechaSolicitud: '2025-10-15', estado: 'Rechazado' },
-    { id: 5, nombre: 'Luis Hernández', especialidad: 'Pediatría', fechaSolicitud: '2025-10-14', estado: 'Aprobado' }
-]);
+// Array de personales pendientes para la tabla
+const personales = ref([])
 
 // Configuración para los filtros
 const searchName = ref('');
@@ -90,8 +84,31 @@ const loadKPIs = async () => {
     }
 }
 
+const loadSolicitudesPendientes = async () => {
+    loading.value = true
+    try {
+        const data = await getSolicitudesPendientesApi()
+        personales.value = data.map(personal => ({
+            id: personal.id_personal_especialidad,
+            nombre: personal.nombre_personal,
+            especialidad: personal.especialidad,
+            nroColegiatura: personal.nro_colegiatura,
+            estado: personal.estado
+        }))
+    } catch (error) {
+        if (error.detail) {
+            errorMessage.value = error.detail
+        } else {
+            errorMessage.value = error.message || 'Error al cargar las solicitudes pendientes'
+        }
+    } finally {
+        loading.value = false
+    }
+}
+
 onMounted(() => {
     loadKPIs()
+    loadSolicitudesPendientes()
 })
 </script>
 
@@ -138,7 +155,7 @@ onMounted(() => {
                         <tr>
                             <th scope="col" class="px-6 py-3 whitespace-nowrap">Nombre del personal</th>
                             <th scope="col" class="px-6 py-3 whitespace-nowrap">Especialidad</th>
-                            <th scope="col" class="px-6 py-3 whitespace-nowrap">Fecha de solicitud</th>
+                            <th scope="col" class="px-6 py-3 whitespace-nowrap">Nro Colegiatura</th>
                             <th scope="col" class="px-6 py-3 whitespace-nowrap">Estado</th>
                             <th scope="col" class="px-6 py-3 whitespace-nowrap">Acciones</th>
                         </tr>
@@ -152,19 +169,19 @@ onMounted(() => {
                                 {{ personal.especialidad }}
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap">
-                                {{ personal.fechaSolicitud }}
+                                {{ personal.nroColegiatura }}
                             </td>
                             <td class="px-6 py-4">
-                                <SpanComponent v-if="personal.estado === 'Aprobado'" variant="primary" label="Aprobado" />
-                                <SpanComponent v-if="personal.estado === 'Pendiente'" variant="danger" label="Pendiente" />
-                                <SpanComponent v-if="personal.estado === 'Rechazado'" variant="secondary" label="Rechazado" />
+                                <SpanComponent v-if="personal.estado === 'aprobado'" variant="primary" label="Aprobado" />
+                                <SpanComponent v-if="personal.estado === 'pendiente'" variant="danger" label="Pendiente" />
+                                <SpanComponent v-if="personal.estado === 'rechazado'" variant="secondary" label="Rechazado" />
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap">
-                                <div v-if="personal.estado === 'Pendiente'" class="flex gap-2">
+                                <div v-if="personal.estado === 'pendiente'" class="flex gap-2">
                                     <ButtonComponent type="button" variant="success" size="small" icon="fa-solid fa-check" label="Aprobar" @click="openConfirmModal(personal, 'aprobado')" />
                                     <ButtonComponent type="button" variant="danger" size="small" icon="fa-solid fa-xmark" label="Rechazar" @click="openConfirmModal(personal, 'rechazado')" />
                                 </div>
-                                <div v-else-if="personal.estado === 'Aprobado'" class="flex gap-2">
+                                <div v-else-if="personal.estado === 'aprobado'" class="flex gap-2">
                                     <ButtonComponent type="button" variant="warning" size="small" icon="fa-solid fa-xmark" label="Dar de baja" @click="openConfirmModal(personal, 'baja')" />
                                 </div>
                                 <span v-else class="text-gray-400 text-sm">Sin acciones</span>
