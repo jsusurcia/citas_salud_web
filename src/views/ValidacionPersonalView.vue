@@ -9,7 +9,7 @@ import ConfirmModalComponent from '../components/ConfirmModalComponent.vue';
 import LoaderComponent from '../components/LoaderComponent.vue';
 
 // Importar API
-import { getPendientesApi, getAprobadosHoyApi, getRechazadosHoyApi, getSolicitudesPendientesApi, aprobarSolicitudApi } from '../api/admin_validaciones';
+import { getPendientesApi, getAprobadosHoyApi, getRechazadosHoyApi, getSolicitudesPendientesApi, aprobarSolicitudApi, rechazarSolicitudApi } from '../api/admin_validaciones';
 
 // Array de personales pendientes para la tabla
 const personales = ref([])
@@ -48,6 +48,7 @@ const aprobadosHoy = ref(0)
 const rechazadosHoy = ref(0)
 const loading = ref(false)
 const errorMessage = ref('')
+
 const loadKPIs = async () => {
     loading.value = true
 
@@ -102,23 +103,18 @@ const handleApproveRequest = async () => {
     errorMessage.value = '';
     
     try {
+        //Obtener el ID del personal especialidad seleccionado
         const idPersonalEspecialidad = selectedPersonal.value.id;
         
-        console.log('✅ Aprobando solicitud...', { idPersonalEspecialidad });
-        
         // Llamar a la API para aprobar la solicitud
-        await aprobarSolicitudApi(idPersonalEspecialidad, 'aprobado');
-        
-        console.log('✅ Solicitud aprobada exitosamente');
+        await aprobarSolicitudApi(idPersonalEspecialidad);
         
         // Cerrar el modal
         closeModal();
         
         // Recargar los datos para reflejar los cambios
-        await Promise.all([
-            loadKPIs(),                    // Actualizar KPIs
-            loadSolicitudesPendientes()    // Actualizar la tabla
-        ]);
+        await loadKPIs()
+        await loadSolicitudesPendientes()
         
     } catch (error) {
         console.error('❌ Error al aprobar solicitud:', error);
@@ -144,9 +140,37 @@ const handleApproveRequest = async () => {
 
 // Método para rechazar una solicitud (placeholder - implementar cuando esté lista la API)
 const handleRejectRequest = async () => {
-    console.warn('⚠️ Función de rechazar solicitud aún no implementada');
-    errorMessage.value = 'La funcionalidad de rechazar solicitudes aún no está implementada.';
-    closeModal();
+    if (!selectedPersonal.value) return;
+
+    creating.value = true;
+    errorMessage.value = '';
+
+    try {
+        const idPersonalEspecialidad = selectedPersonal.value.id;
+        await rechazarSolicitudApi(idPersonalEspecialidad);
+        closeModal();
+        await loadKPIs()
+        await loadSolicitudesPendientes()
+    } catch (error) {
+        console.error('❌ Error al rechazar solicitud:', error);
+        
+        // Mostrar mensaje de error más específico
+        let errorMsg = 'Error al rechazar la solicitud';
+        
+        if (error.response?.status === 404) {
+            errorMsg = 'Solicitud no encontrada';
+        } else if (error.response?.status === 403) {
+            errorMsg = 'No tienes permisos para rechazar solicitudes. Solo los administradores pueden realizar esta acción.';
+        } else if (error.detail) {
+            errorMsg = error.detail;
+        } else if (error.message) {
+            errorMsg = error.message;
+        }
+        
+        errorMessage.value = errorMsg;
+    } finally {
+        creating.value = false;
+    }
 };
 
 onMounted(() => {
@@ -162,7 +186,7 @@ onMounted(() => {
         <p class=" mb-4 font-normal text-gray-500">Administrar solicitudes de doctores pendientes.</p>
 
         <!-- Loader -->
-        <div v-if="loading && personales.length === 0" class="flex justify-center items-center py-12">
+        <div v-if="loading && personales.length === 0 || creating" class="flex justify-center items-center py-12">
             <LoaderComponent />
         </div>        
 
@@ -171,7 +195,7 @@ onMounted(() => {
             <div class="mb-6 grid grid-cols-1 md:grid-cols-3 gap-4">
                 <cardKPIComponent :value="String(pendientes)" label="Solicitudes pendientes" />
                 <cardKPIComponent :value="String(aprobadosHoy)" label="Solicitudes aprobadas hoy" />
-                <cardKPIComponent value="0" label="Solicitudes rechazadas hoy" />
+                <cardKPIComponent :value="String(rechazadosHoy)" label="Solicitudes rechazadas hoy" />
             </div>
     
             <!-- Filtros -->

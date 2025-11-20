@@ -80,7 +80,7 @@ export const getSolicitudesPendientesApi = async () => {
 }
 
 //Función para aprobar una solicitud
-export const aprobarSolicitudApi = async (idPersonalEspecialidad, estado) => {
+export const aprobarSolicitudApi = async (idPersonalEspecialidad) => {
     try {
         // El ID se interpola en la URL usando template literals
         const res = await apiClient.post(`/administrador/validar_personal/${idPersonalEspecialidad}`)
@@ -95,7 +95,27 @@ export const aprobarSolicitudApi = async (idPersonalEspecialidad, estado) => {
             throw { detail: 'Formato de respuesta inesperado del servidor' }
         }
     } catch (error) {
-        console.error('Error al aprobar/rechazar solicitud:', error)
+        console.error('Error al aprobar solicitud:', error)
+        throw error.response?.data || { detail: error.message || 'Error al conectar' }
+    }
+}
+
+//Función para rechazar una solicitud
+export const rechazarSolicitudApi = async (idPersonalEspecialidad) => {
+    try {
+        //El ID se interpola en la URL
+        const res = await apiClient.post(`/administrador/rechazar_personal/${idPersonalEspecialidad}`)
+        const response = res.data
+
+        if (response.status === 'success' && response.data) {
+            return response.data
+        } else if (response.status === 'success') {
+            return response
+        } else {
+            throw { detail: 'Formato de respuesta inesperado del servidor' }
+        }
+    } catch (error) {
+        console.error('Error al rechazar solicitud:', error)
         throw error.response?.data || { detail: error.message || 'Error al conectar' }
     }
 }
