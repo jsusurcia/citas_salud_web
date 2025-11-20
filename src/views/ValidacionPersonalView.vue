@@ -1,11 +1,14 @@
 <script setup>
 // Importar Componentes y otros
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import LayoutComponent from '../components/LayoutComponent.vue';
 import cardKPIComponent from '../components/cardKPIComponent.vue';
 import ButtonComponent from '../components/ButtonComponent.vue';
 import SpanComponent from '../components/SpanComponent.vue';
 import ConfirmModalComponent from '../components/ConfirmModalComponent.vue';
+
+// Importar API
+import { getPendientesApi, getAprobadosHoyApi, getRechazadosHoyApi } from '../api/admin_validaciones';
 
 // Array de prueba
 const personales = ref([
@@ -56,6 +59,40 @@ const handleConfirmAction = () => {
 
     closeModal();
 }
+
+// Método de carga inicial de KPIs
+const pendientes = ref(0)
+const aprobadosHoy = ref(0)
+const rechazadosHoy = ref(0)
+const loading = ref(false)
+const errorMessage = ref('')
+const loadKPIs = async () => {
+    loading.value = true
+
+    try {
+        const dataPendientes = await getPendientesApi()
+        const dataAprobadosHoy = await getAprobadosHoyApi()
+        const dataRechazadosHoy = await getRechazadosHoyApi()
+
+        // Asegurar que sean números
+        pendientes.value = typeof dataPendientes === 'number' ? dataPendientes : 0
+        aprobadosHoy.value = typeof dataAprobadosHoy === 'number' ? dataAprobadosHoy : 0
+        rechazadosHoy.value = typeof dataRechazadosHoy === 'number' ? dataRechazadosHoy : 0
+    } catch (error) {
+        console.error('❌ Error al cargar KPIs:', error)
+        errorMessage.value = error.detail || error.message || 'Error al cargar los KPIs'
+        // En caso de error, mantener los valores en 0
+        pendientes.value = 0
+        aprobadosHoy.value = 0
+        rechazadosHoy.value = 0
+    } finally {
+        loading.value = false
+    }
+}
+
+onMounted(() => {
+    loadKPIs()
+})
 </script>
 
 <template>
@@ -66,9 +103,9 @@ const handleConfirmAction = () => {
 
         <!-- KPIs -->
         <div class="mb-6 grid grid-cols-1 md:grid-cols-3 gap-4">
-            <cardKPIComponent value="5" label="Solicitudes pendientes" />
-            <cardKPIComponent value="1" label="Solicitudes aprobadas hoy" />
-            <cardKPIComponent value="1" label="Solicitudes rechazadas hoy" />
+            <cardKPIComponent :value="String(pendientes)" label="Solicitudes pendientes" />
+            <cardKPIComponent :value="String(aprobadosHoy)" label="Solicitudes aprobadas hoy" />
+            <cardKPIComponent value="0" label="Solicitudes rechazadas hoy" />
         </div>
 
         <!-- Filtros -->
