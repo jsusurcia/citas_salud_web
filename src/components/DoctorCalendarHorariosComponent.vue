@@ -22,13 +22,26 @@ const emits = defineEmits(['crear-horario', 'actualizar-horario', 'eliminar-hora
 // --- 2. Computed: Mapear Horarios a Eventos de Vue-Cal ---
 const eventosDelCalendario = computed(() => {
   console.log(`%c--- (ECO) COMPUTED: Recalculando eventos. Total: ${props.horarios.length} ---`, 'color: #28a745');
-  return props.horarios.map(horario => ({
-    id: horario.id_horario,
-    start: `${horario.fecha} ${horario.hora_inicio.substring(0, 5)}`,
-    end: `${horario.fecha} ${horario.hora_fin.substring(0, 5)}`,
-    title: horario.en_centro_medico ? 'En centro médico' : 'Visita',
-    class: horario.en_centro_medico ? 'bloque-disponible' : 'bloque-visita'
-  }))
+  return props.horarios.map(horario => {
+    let clase = '';
+    let titulo = '';
+
+    if (horario.en_centro_medico) {
+      clase = horario.estado ? 'bloque-centro-disponible' : 'bloque-centro-ocupado';
+      titulo = horario.estado ? 'En centro médico' : 'En centro médico (Ocupado)';
+    } else {
+      clase = horario.estado ? 'bloque-visita-disponible' : 'bloque-visita-ocupado';
+      titulo = horario.estado ? 'Visita' : 'Visita (Ocupada)';
+    }
+
+    return {
+      id: horario.id_horario,
+      start: `${horario.fecha} ${horario.hora_inicio.substring(0, 5)}`,
+      end: `${horario.fecha} ${horario.hora_fin.substring(0, 5)}`,
+      title: titulo,
+      class: clase
+    }
+  })
 })
 
 // --- 3. Funciones de Utilidad (SIMPLIFICADAS) ---
@@ -168,18 +181,36 @@ const confirmarEliminacion = (event) => {
 </script>
 
 <style>
-/* Estilo para los bloques en posta (verde) */
-.vuecal__event.bloque-disponible {
+/* --- ESTILOS ACTUALIZADOS --- */
+
+/* 1. Centro Médico - DISPONIBLE (Verde) */
+.vuecal__event.bloque-centro-disponible {
   background-color: rgba(25, 135, 84, 0.8);
   border: 1px solid rgb(21, 115, 71);
   color: #fff;
   cursor: pointer;
 }
 
-/* Estilo para los bloques de visita (azul) */
-.vuecal__event.bloque-visita {
+/* 2. Centro Médico - OCUPADO (Naranja) */
+.vuecal__event.bloque-centro-ocupado {
+  background-color: rgba(253, 126, 20, 0.8);
+  border: 1px solid rgb(200, 100, 10);
+  color: #fff;
+  cursor: pointer;
+}
+
+/* 3. Visita - DISPONIBLE (Azul) */
+.vuecal__event.bloque-visita-disponible {
   background-color: rgba(54, 110, 199, 0.8);
   border: 1px solid rgb(40, 83, 148);
+  color: #fff;
+  cursor: pointer;
+}
+
+/* 4. Visita - OCUPADO (Rojo/Vino) */
+.vuecal__event.bloque-visita-ocupado {
+  background-color: rgba(220, 53, 69, 0.8);
+  border: 1px solid rgb(170, 40, 50);
   color: #fff;
   cursor: pointer;
 }

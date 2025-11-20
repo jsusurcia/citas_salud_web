@@ -20,7 +20,7 @@
     <div v-else>
 
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-        
+
         <div>
           <label for="tipoAtencion" class="block mb-2 text-sm font-medium text-gray-900">
             Tipo de atención
@@ -47,7 +47,7 @@
           <input type="text" id="sala" v-model="sala" placeholder="Ingrese el número del consultorio"
             class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-green-500 focus:border-green-500 block w-full p-2.5" />
         </div>
-        
+
       </div>
       <DoctorCalendarHorariosComponent :horarios="horarios" @crear-horario="handleCrear"
         @actualizar-horario="handleActualizar" @eliminar-horario="handleEliminar" />
@@ -101,7 +101,7 @@ onMounted(() => {
  * Se llama cuando el calendario emite '@crear-horario'.
  * Pasa los datos del nuevo horario a la acción del store.
  */
-const handleCrear = (timeData) => { 
+const handleCrear = (timeData) => {
   console.log('Vista: Recibido evento @crear-horario (solo tiempo)', timeData)
   console.log('Vista: Usando tipo de atención:', tipoAtencion.value ? 'En centro médico' : 'Visita')
 
@@ -112,8 +112,8 @@ const handleCrear = (timeData) => {
 
   // 2. Añadir datos condicionales Y VALIDAR
   if (horarioData.en_centro_medico === true) {
-    
-    const pisoVal = piso.value.trim() 
+
+    const pisoVal = piso.value.trim()
     const salaVal = sala.value.trim()
 
     if (!pisoVal || !salaVal) {
@@ -124,13 +124,13 @@ const handleCrear = (timeData) => {
       console.warn('Vista: Validación fallida. Faltan piso o sala.')
       return
     }
-    
+
 
     horarioData.piso = pisoVal;
     horarioData.sala = salaVal;
-    
-  } 
-  
+
+  }
+
 
   console.log('Vista: Enviando payload completo al store', horarioData)
 
@@ -145,7 +145,7 @@ const handleActualizar = (horarioId, timeData) => { // timeData es {fecha, hora_
 
   // 1. Buscar el horario original en el store
   const horarioOriginal = horarioStore.horarios.find(h => h.id_horario === horarioId);
-  
+
   if (!horarioOriginal) {
     console.error('Vista: No se encontró el horario original para actualizar.');
     return;
@@ -160,13 +160,13 @@ const handleActualizar = (horarioId, timeData) => { // timeData es {fecha, hora_
     sala: horarioOriginal.sala,
     estado: horarioOriginal.estado,
     // (Añade 'nombre_centro_medico', etc., si también los tienes en el objeto)
-    
+
     // Nuevos datos de tiempo (sobrescriben los originales)
-    ...timeData 
+    ...timeData
   };
-  
+
   console.log('Vista: Enviando payload de actualización completo al store', fullUpdateData);
-  
+
   // 3. Enviar el payload completo al store
   horarioStore.updateHorario(horarioId, fullUpdateData);
 }
@@ -174,9 +174,36 @@ const handleActualizar = (horarioId, timeData) => { // timeData es {fecha, hora_
 /**
  * Se llama cuando el calendario emite '@eliminar-horario'.
  */
-const handleEliminar = (horarioId) => {
+const handleEliminar = async (horarioId) => {
   console.log('Vista: Recibido evento @eliminar-horario', horarioId)
-  horarioStore.removeHorario(horarioId)
+
+  try {
+    // 1. Intentar eliminar sin confirmación
+    await horarioStore.removeHorario(horarioId)
+  } catch (error) {
+    // 2. Si el backend devuelve 409 (Conflict), es porque hay citas asociadas
+    if (error.status === 409 || error.status === '409' || error.statusCode === 409) {
+      const mensaje = error.detail || "Este horario tiene citas asociadas. ¿Deseas eliminarlo de todas formas? Se notificará al paciente.";
+
+      // 3. Pedir confirmación al usuario
+      if (confirm(mensaje)) {
+        console.log('Vista: Usuario confirmó eliminación forzada.');
+        try {
+          // 4. Reintentar con confirmación = true
+          await horarioStore.removeHorario(horarioId, true)
+        } catch (retryError) {
+          console.error('Vista: Error al eliminar incluso con confirmación', retryError);
+          alert("No se pudo eliminar el horario: " + (retryError.detail || retryError.message));
+        }
+      } else {
+        console.log('Vista: Usuario canceló la eliminación.');
+      }
+    } else {
+      // Otros errores
+      console.error('Vista: Error al eliminar horario', error);
+      // El store ya maneja el error en 'horarioStore.error', pero podemos mostrar un alert extra si queremos
+    }
+  }
 }
 
 /**

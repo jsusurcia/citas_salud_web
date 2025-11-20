@@ -476,7 +476,7 @@ const handleDelete = async () => {
       :isLoading="creating">
       <div>
         <label for="nombre" class="block mb-2 text-sm font-medium text-gray-900">Nombre</label>
-        <input id="nombre" v-model="form.nombre" type="text" placeholder="Ej. Medicina general" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-green-500 focus:border-green-500 block w-full p-2.5" required />
+        <input id="nombre" v-model="form.nombre" type="text" placeholder="Ingresa el nombre de la especialidad" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-green-500 focus:border-green-500 block w-full p-2.5" required />
       </div>
       <div>
         <label for="descripcion" class="block mb-2 text-sm font-medium text-gray-900">Descripción</label>
@@ -484,11 +484,11 @@ const handleDelete = async () => {
       </div>
       <div>
         <label for="duracion" class="block mb-2 text-sm font-medium text-gray-900">Duración (minutos)</label>
-        <input id="duracion" v-model.number="form.duracionMinutos" type="number" min="1" placeholder="Ej. 20" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-green-500 focus:border-green-500 block w-full p-2.5" required />
+        <input id="duracion" v-model.number="form.duracionMinutos" type="number" min="1" placeholder="Ingrese la duración" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-green-500 focus:border-green-500 block w-full p-2.5" required />
       </div>
       <div>
         <label for="precio" class="block mb-2 text-sm font-medium text-gray-900">Precio (S/)</label>
-        <input id="precio" v-model.number="form.precio" type="number" min="0" step="0.1" placeholder="Ej. 0.00" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-green-500 focus:border-green-500 block w-full p-2.5" required />
+        <input id="precio" v-model.number="form.precio" type="number" min="0" step="0.1" placeholder="Ingrese el precio" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-green-500 focus:border-green-500 block w-full p-2.5" required />
       </div>
       <div v-if="activeModal === 'add' && errorMessage" class="p-3 bg-red-100 border border-red-300 text-red-700 rounded-md text-sm">
         {{ errorMessage }}
