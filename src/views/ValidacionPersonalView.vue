@@ -17,7 +17,7 @@ const personales = ref([])
 
 // Configuración para los filtros
 const searchName = ref('');
-const searchSpeciality = ref('');
+const searchSpecialty = ref('');
 
 const filterPersonal = computed(() => {
     return personales.value.filter(personal => {
@@ -95,10 +95,10 @@ const loadEspecialidades = async () => {
 }
 
 // Método para cargar las solicitudes pendientes (La tabla)
-const loadSolicitudesPendientes = async () => {
+const loadSolicitudesPendientes = async (searchName='', searchSpecialty='') => {
     loading.value = true
     try {
-        const data = await getSolicitudesPendientesApi()
+        const data = await getSolicitudesPendientesApi(searchName, searchSpecialty)
         personales.value = data.map(personal => ({
             id: personal.id_personal_especialidad,
             nombre: personal.nombre_personal,
@@ -222,7 +222,7 @@ onMounted(() => {
             </div>
     
             <!-- Filtros -->
-            <form class="mb-6" @submit.prevent>
+            <form class="mb-6" @submit.prevent="loadSolicitudesPendientes(searchName, searchSpecialty)">
                 <div class="flex flex-col md:flex-row gap-4">
                     <div class="flex-1 md:max-w-xs">
                         <input type="text" v-model="searchName"
@@ -231,7 +231,7 @@ onMounted(() => {
                             placeholder="Buscar por nombre..." />
                     </div>
                     <div class="flex-1 md:max-w-xs">
-                        <select v-model="searchSpeciality"
+                        <select v-model="searchSpecialty"
                             id="searchEspecialidad" name="searchEspecialidad"
                             class="bg-white border border-gray-200 text-sm rounded-lg focus:ring-[#10A697] focus:border-[#10A697] block w-full px-4 py-2.5">
                             <option value="" selected disabled>Filtrar por especialidad</option>

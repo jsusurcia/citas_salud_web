@@ -61,9 +61,24 @@ export const getRechazadosHoyApi = async () => {
 }
 
 //Función para mostrar las solicitudes pendientes (Tabla)
-export const getSolicitudesPendientesApi = async () => {
+export const getSolicitudesPendientesApi = async (searchName='', searchSpecialty='') => {
     try{
-        const res = await apiClient.get('/administrador/pending_requests')
+        //Agregado → Filtros de búsqueda
+        let url = '/administrador/pending_requests';
+        let parametros = [];
+
+        if (searchName) {
+            parametros.push(`searchName=${encodeURIComponent(searchName)}`)
+        }
+        if (searchSpecialty) {
+            parametros.push(`searchSpecialty=${encodeURIComponent(searchSpecialty)}`)
+        }
+
+        if (parametros.length > 0) {
+            url += '?' + parametros.join('&');
+        }
+
+        const res = await apiClient.get(url)
         const response = res.data
 
         if (response.status === 'success' && Array.isArray(response.data)) {
