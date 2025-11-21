@@ -64,9 +64,11 @@ export const useChatStore = defineStore('chat', {
         console.warn('Chat: Conexión ya existente.');
         return;
       }
+      const baseURL = import.meta.env.VITE_WS_URL || 'wss://codestar.space/ws';
 
-      const wsURL = `ws://localhost:8083/ws?token=${token}`;
-      //console.log('Chat: Conectando a', wsURL);
+      const wsURL = `${baseURL}?token=${token}`;
+
+      console.log('Chat: Conectando a', wsURL);
       this.socket = new WebSocket(wsURL);
 
       this.setupSocketListeners();

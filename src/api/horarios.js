@@ -5,9 +5,9 @@ import apiClient from './auth.js'
 export const getDisponibilidadApi = async () => {
   try {
     console.log('🔍 Obteniendo disponibilidad (GET /mis_horarios)...')
-    
+
     // 1. Llamamos al endpoint.
-    const res = await apiClient.get('/horarios_disponibles/mis_horarios') 
+    const res = await apiClient.get('/horarios_disponibles/mis_horarios')
     // (Asegúrate que la ruta base 'horarios_disponibles' esté correcta)
 
     const response = res.data // { status, message, data }
@@ -32,9 +32,9 @@ export const createDisponibilidadApi = async (disponibilidadData) => {
   try {
     console.log('➕ Creando disponibilidad (POST /horarios_disponibles/):', disponibilidadData)
     const res = await apiClient.post('/horarios_disponibles/', disponibilidadData)
-    
+
     const response = res.data // { status, message, data }
-    
+
     if (response.status === 'success' && response.data) {
       console.log('✅ Horario creado exitosamente')
       return response.data
@@ -43,7 +43,7 @@ export const createDisponibilidadApi = async (disponibilidadData) => {
     }
   } catch (error) {
     console.error('❌ Error al crear disponibilidad:', error)
-    
+
     if (error.response?.data) {
       const errorData = error.response.data
       if (errorData.detail) {
@@ -51,7 +51,7 @@ export const createDisponibilidadApi = async (disponibilidadData) => {
       }
       throw errorData
     }
-    
+
     throw { detail: error.message || 'Error al conectar con el servidor' }
   }
 }
@@ -61,9 +61,9 @@ export const updateDisponibilidadApi = async (disponibilidadId, disponibilidadDa
   try {
     //console.log('✏️ Actualizando disponibilidad:', disponibilidadId)
     const res = await apiClient.put(`/horarios_disponibles/${disponibilidadId}`, disponibilidadData)
-    
+
     const response = res.data
-    
+
     if (response.status === 'success' && response.data) {
       //console.log('✅ Horario actualizado exitosamente')
       return response.data
@@ -72,7 +72,7 @@ export const updateDisponibilidadApi = async (disponibilidadId, disponibilidadDa
     }
   } catch (error) {
     console.error('❌ Error al actualizar disponibilidad:', error)
-    
+
     // Extraer mensaje de error del backend
     if (error.response?.data) {
       const errorData = error.response.data
@@ -81,19 +81,21 @@ export const updateDisponibilidadApi = async (disponibilidadId, disponibilidadDa
       }
       throw errorData
     }
-    
+
     throw { detail: error.message || 'Error al conectar con el servidor' }
   }
 }
 
 // Función para eliminar disponibilidad (soft delete)
-export const deleteDisponibilidadApi = async (disponibilidadId) => {
+export const deleteDisponibilidadApi = async (disponibilidadId, confirmarEliminacion = false) => {
   try {
-    console.log('🗑️ Eliminando disponibilidad:', disponibilidadId)
-    const res = await apiClient.delete(`/horarios_disponibles/${disponibilidadId}`)
-    
+    console.log(`🗑️ Eliminando disponibilidad: ${disponibilidadId} (Confirmado: ${confirmarEliminacion})`)
+    const res = await apiClient.delete(`/horarios_disponibles/${disponibilidadId}`, {
+      params: { confirmar_eliminacion: confirmarEliminacion }
+    })
+
     const response = res.data
-    
+
     if (response.status === 'success') {
       console.log('✅ Horario eliminado exitosamente')
       return response.data || response
@@ -102,17 +104,20 @@ export const deleteDisponibilidadApi = async (disponibilidadId) => {
     }
   } catch (error) {
     console.error('❌ Error al eliminar disponibilidad:', error)
-    
+
     // Extraer mensaje de error del backend
-    if (error.response?.data) {
-      const errorData = error.response.data
-      if (errorData.detail) {
-        throw { detail: errorData.detail }
+    if (error.response) {
+      const status = error.response.status
+      const errorData = error.response.data || {}
+
+      const errorToThrow = {
+        status: status,
+        detail: errorData.detail || error.message || 'Error al conectar con el servidor',
+        ...errorData
       }
-      throw errorData
+      throw errorToThrow
     }
-    
+
     throw { detail: error.message || 'Error al conectar con el servidor' }
   }
 }
-

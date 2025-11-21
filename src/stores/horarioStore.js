@@ -1,11 +1,11 @@
 // /stores/horarioStore.js
 import { defineStore } from "pinia"
 
-import { 
-  getDisponibilidadApi, 
-  createDisponibilidadApi, 
+import {
+  getDisponibilidadApi,
+  createDisponibilidadApi,
   deleteDisponibilidadApi,
-  updateDisponibilidadApi 
+  updateDisponibilidadApi
 } from "../api/horarios"
 
 export const useHorarioStore = defineStore("horario", {
@@ -27,7 +27,7 @@ export const useHorarioStore = defineStore("horario", {
       this.error = null
       try {
         // La acción llama a la API
-        const data = await getDisponibilidadApi() 
+        const data = await getDisponibilidadApi()
         this.horarios = data
       } catch (err) {
         this.error = err.detail || "Error al cargar los horarios"
@@ -48,7 +48,7 @@ export const useHorarioStore = defineStore("horario", {
         const nuevoHorario = await createDisponibilidadApi(horarioData)
         // Añade el nuevo horario al estado local
         //this.horarios.push(nuevoHorario) 
-          this.horarios.push(...nuevoHorario)
+        this.horarios.push(...nuevoHorario)
       } catch (err) {
         this.error = err.detail || "Error al crear el horario"
         throw err // Lanza el error para que el formulario lo sepa
@@ -61,15 +61,16 @@ export const useHorarioStore = defineStore("horario", {
      * Llama a la API para eliminar (desactivar) un horario.
      * Si tiene éxito, lo quita de la lista local.
      */
-    async removeHorario(horarioId) {
+    async removeHorario(horarioId, confirmarEliminacion = false) {
       this.isLoading = true
       this.error = null
       try {
-        await deleteDisponibilidadApi(horarioId)
+        await deleteDisponibilidadApi(horarioId, confirmarEliminacion)
         // Filtra el horario eliminado del estado local
         this.horarios = this.horarios.filter(h => h.id_horario !== horarioId)
       } catch (err) {
         this.error = err.detail || "Error al eliminar el horario"
+        throw err
       } finally {
         this.isLoading = false
       }
@@ -84,15 +85,15 @@ export const useHorarioStore = defineStore("horario", {
         // Llamamos a la API *primero*, antes de tocar el estado.
         // 'horarioData' es el payload completo que armamos en la vista.
         const horarioActualizado = await updateDisponibilidadApi(horarioId, horarioData)
-        
+
         // --- PASO 2: MUTAR, NO REEMPLAZAR ---
         // Buscamos el objeto original en nuestro estado.
         const index = this.horarios.findIndex(h => h.id_horario === horarioId)
-        
+
         if (index !== -1) {
           // ¡ESTA ES LA MAGIA!
           // No hacemos: this.horarios[index] = horarioActualizado (¡MAL!)
-          
+
           // Hacemos: Mutamos el objeto existente con los datos del objeto actualizado.
           // Object.assign(target, source)
           Object.assign(this.horarios[index], horarioActualizado);
@@ -101,7 +102,7 @@ export const useHorarioStore = defineStore("horario", {
       } catch (err) {
         this.error = err.detail || "Error al actualizar el horario"
         // Si falla, forzamos una recarga para no tener datos corruptos
-        this.fetchHorarios(); 
+        this.fetchHorarios();
         throw err
       } finally {
         this.isLoading = false
