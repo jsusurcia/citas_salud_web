@@ -48,6 +48,16 @@
                     label="Ver Reporte" 
                     @click="handleVerReporte('especialidades')" />
             </div>
+            <div class="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+                <h3 class="text-lg font-semibold text-gray-700 mb-2">Reporte de Calificaciones</h3>
+                <p class="text-sm text-gray-600 mb-4">Distribución de calificaciones médicas</p>
+                <ButtonComponent 
+                    type="button" 
+                    variant="primary" 
+                    size="medium" 
+                    label="Ver Reporte" 
+                    @click="handleVerReporte('calificaciones')" />
+            </div>
         </div>
         
         <!-- Mensaje cuando no hay reportes disponibles -->
@@ -71,10 +81,14 @@ const loading = ref(false)
 const errorMessage = ref('')
 
 // 3. Esta función ahora es diferente
+// 3. Esta función ahora incluye calificaciones
 const handleVerReporte = (tipo) => {
     if (tipo === 'citas') {
-        // Te redirige a la página de gráficos
+        // Te redirige a la página de gráficos de citas
         router.push('/admin/reportes/generador') 
+    } else if (tipo === 'calificaciones') {
+        // 🆕 Redirige a la página de calificaciones
+        router.push('/admin/reportes/calificaciones')
     } else {
         // Los otros botones siguen mostrando una alerta
         console.log(`📊 Ver reporte de: ${tipo}`)
