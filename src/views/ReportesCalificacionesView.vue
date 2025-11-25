@@ -36,7 +36,10 @@
                     </div>
                     <div class="text-center">
                         <p class="text-sm text-gray-600 mb-2">Calificación Promedio</p>
-                        <p class="text-3xl font-bold text-gray-900">{{ reporteData.calificacion_promedio }} <span class="text-lg text-gray-500">/ 5</span></p>
+                        <p class="text-3xl font-bold text-gray-900">
+                            {{ reporteData.calificacion_promedio?.toFixed(1) || '0.0' }} 
+                            <span class="text-lg text-gray-500">/ 5</span>
+                        </p>
                     </div>
                 </div>
 
@@ -49,7 +52,7 @@
                     </div>
                     <div class="text-center">
                         <p class="text-sm text-gray-600 mb-2">Total de Reseñas</p>
-                        <p class="text-3xl font-bold text-gray-900">{{ reporteData.total_resenas.toLocaleString() }}</p>
+                        <p class="text-3xl font-bold text-gray-900">{{ (reporteData.total_resenas || 0).toLocaleString() }}</p>
                     </div>
                 </div>
 
@@ -62,7 +65,7 @@
                     </div>
                     <div class="text-center">
                         <p class="text-sm text-gray-600 mb-2">Reseñas de 5 Estrellas</p>
-                        <p class="text-3xl font-bold text-gray-900">{{ reporteData.resenas_5_estrellas.toLocaleString() }}</p>
+                        <p class="text-3xl font-bold text-gray-900">{{ (reporteData.resenas_5_estrellas || 0).toLocaleString() }}</p>
                     </div>
                 </div>
 
@@ -74,8 +77,8 @@
                         </div>
                     </div>
                     <div class="text-center">
-                        <p class="text-sm text-gray-600 mb-2">Reseñas Recientes</p>
-                        <p class="text-3xl font-bold text-gray-900">{{ reporteData.resenas_recientes }}</p>
+                        <p class="text-sm text-gray-600 mb-2">Reseñas Recientes (7d)</p>
+                        <p class="text-3xl font-bold text-gray-900">{{ reporteData.resenas_recientes || 0 }}</p>
                     </div>
                 </div>
             </div>
@@ -198,26 +201,60 @@ const handleGenerarReporte = async (filtros) => {
             tipoResumen: 'todas'
         }
         
+        console.log('📡 Enviando a API:', filtrosAdaptados)
         const data = await getReporteCalificacionesApi(filtrosAdaptados)
+        
         console.log('✅ Datos recibidos:', data)
+        console.log('📊 Validación de estructura:')
+        console.log('   - calificacion_promedio:', data.calificacion_promedio)
+        console.log('   - total_resenas:', data.total_resenas)
+        console.log('   - resenas_5_estrellas:', data.resenas_5_estrellas)
+        console.log('   - resenas_recientes:', data.resenas_recientes)
+        console.log('   - distribucion:', data.distribucion)
+        console.log('   - tendencia:', data.tendencia)
+        console.log('   - comentarios_recientes:', data.comentarios_recientes?.length || 0, 'comentarios')
+        
+        // Validación adicional
+        if (!data.distribucion || !Array.isArray(data.distribucion)) {
+            throw new Error('La distribución no es válida')
+        }
+        
+        if (!data.tendencia || !data.tendencia.labels || !data.tendencia.data) {
+            throw new Error('La tendencia no es válida')
+        }
         
         reporteData.value = data
+        
         await nextTick()
         crearGraficos()
+        
+        console.log('✅ Reporte renderizado correctamente')
     } catch (error) {
-        console.error('❌ Error:', error)
-        errorMessage.value = error.detail || 'Error al generar el reporte'
+        console.error('❌ Error completo:', error)
+        errorMessage.value = error.detail || error.message || 'Error al generar el reporte'
     } finally {
         loading.value = false
     }
 }
 
 const crearGraficos = () => {
-    if (chartDistribucionInstance) chartDistribucionInstance.destroy()
-    if (chartTendenciaInstance) chartTendenciaInstance.destroy()
+    // Destruir gráficos previos
+    if (chartDistribucionInstance) {
+        chartDistribucionInstance.destroy()
+        chartDistribucionInstance = null
+    }
+    if (chartTendenciaInstance) {
+        chartTendenciaInstance.destroy()
+        chartTendenciaInstance = null
+    }
 
-    // Gráfico de Distribución (estilo tu diseño)
-    if (chartDistribucion.value) {
+    console.log('📊 Creando gráficos...')
+    console.log('   - Distribución:', reporteData.value.distribucion)
+    console.log('   - Tendencia labels:', reporteData.value.tendencia.labels)
+    console.log('   - Tendencia data:', reporteData.value.tendencia.data)
+
+    // Gráfico de Distribución
+    if (chartDistribucion.value && reporteData.value.distribucion) {
         const ctx = chartDistribucion.value.getContext('2d')
         chartDistribucionInstance = new Chart(ctx, {
             type: 'bar',
@@ -234,28 +271,44 @@ const crearGraficos = () => {
                 responsive: true,
                 maintainAspectRatio: true,
                 plugins: {
-                    legend: { display: true, position: 'bottom' },
+                    legend: { 
+                        display: true, 
+                        position: 'bottom',
+                        labels: {
+                            padding: 15,
+                            font: { size: 12 }
+                        }
+                    },
                     tooltip: {
                         backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                        padding: 12
+                        padding: 12,
+                        titleFont: { size: 14 },
+                        bodyFont: { size: 13 }
                     }
                 },
                 scales: {
                     y: {
                         beginAtZero: true,
-                        ticks: { precision: 0 },
+                        ticks: { 
+                            precision: 0,
+                            font: { size: 12 }
+                        },
                         grid: { color: 'rgba(0, 0, 0, 0.05)' }
                     },
                     x: {
+                        ticks: { font: { size: 12 } },
                         grid: { display: false }
                     }
                 }
             }
         })
+        console.log('✅ Gráfico de distribución creado')
+    } else {
+        console.warn('⚠️ No se pudo crear el gráfico de distribución')
     }
 
-    // Gráfico de Tendencia (estilo tu diseño)
-    if (chartTendencia.value) {
+    // Gráfico de Tendencia
+    if (chartTendencia.value && reporteData.value.tendencia) {
         const ctx = chartTendencia.value.getContext('2d')
         chartTendenciaInstance = new Chart(ctx, {
             type: 'line',
@@ -278,34 +331,51 @@ const crearGraficos = () => {
                 responsive: true,
                 maintainAspectRatio: true,
                 plugins: {
-                    legend: { display: true, position: 'bottom' },
+                    legend: { 
+                        display: true, 
+                        position: 'bottom',
+                        labels: {
+                            padding: 15,
+                            font: { size: 12 }
+                        }
+                    },
                     tooltip: {
                         backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                        padding: 12
+                        padding: 12,
+                        titleFont: { size: 14 },
+                        bodyFont: { size: 13 },
+                        callbacks: {
+                            label: (context) => {
+                                return `Promedio: ${context.parsed.y.toFixed(1)} estrellas`
+                            }
+                        }
                     }
                 },
                 scales: {
                     y: {
                         beginAtZero: true,
                         max: 5,
-                        ticks: { stepSize: 1 },
+                        ticks: { 
+                            stepSize: 1,
+                            font: { size: 12 }
+                        },
                         grid: { color: 'rgba(0, 0, 0, 0.05)' }
                     },
                     x: {
+                        ticks: { font: { size: 12 } },
                         grid: { display: false }
                     }
                 }
             }
         })
+        console.log('✅ Gráfico de tendencia creado')
+    } else {
+        console.warn('⚠️ No se pudo crear el gráfico de tendencia')
     }
 }
 
-const calcularPorcentaje = (parte, total) => {
-    if (total === 0) return 0
-    return ((parte / total) * 100).toFixed(1)
-}
-
 const formatearFecha = (fecha) => {
+    if (!fecha) return 'Fecha no disponible'
     return new Date(fecha).toLocaleDateString('es-ES', { 
         day: '2-digit', 
         month: 'short', 
@@ -314,30 +384,77 @@ const formatearFecha = (fecha) => {
 }
 
 const exportarPDF = () => {
+    if (!reporteData.value) return
+    
     const doc = new jsPDF()
+    
+    // Título
+    doc.setFontSize(18)
     doc.text('Reporte de Calificaciones de Pacientes', 14, 20)
+    
+    // Fecha del reporte
+    doc.setFontSize(10)
+    doc.text(`Generado el: ${new Date().toLocaleDateString('es-ES')}`, 14, 28)
+    
+    // Tabla de KPIs
     autoTable(doc, {
-        startY: 30,
+        startY: 35,
         head: [['Métrica', 'Valor']],
         body: [
-            ['Calificación Promedio', `${reporteData.value.calificacion_promedio} / 5.0`],
-            ['Total de Reseñas', reporteData.value.total_resenas],
-            ['5 Estrellas', reporteData.value.resenas_5_estrellas],
-            ['Recientes', reporteData.value.resenas_recientes]
-        ]
+            ['Calificación Promedio', `${reporteData.value.calificacion_promedio?.toFixed(1) || '0.0'} / 5.0`],
+            ['Total de Reseñas', reporteData.value.total_resenas || 0],
+            ['Reseñas de 5 Estrellas', reporteData.value.resenas_5_estrellas || 0],
+            ['Reseñas Recientes (7 días)', reporteData.value.resenas_recientes || 0]
+        ],
+        theme: 'grid',
+        headStyles: { fillColor: [20, 184, 166] }
     })
+    
     doc.save('reporte_calificaciones.pdf')
+    console.log('📄 PDF exportado')
 }
 
 const exportarExcel = () => {
+    if (!reporteData.value) return
+    
     const wb = XLSX.utils.book_new()
-    const ws = XLSX.utils.json_to_sheet([
-        { Métrica: 'Promedio', Valor: reporteData.value.calificacion_promedio },
-        { Métrica: 'Total', Valor: reporteData.value.total_resenas },
-        { Métrica: '5 Estrellas', Valor: reporteData.value.resenas_5_estrellas }
+    
+    // Hoja 1: Resumen
+    const wsResumen = XLSX.utils.json_to_sheet([
+        { Métrica: 'Calificación Promedio', Valor: reporteData.value.calificacion_promedio?.toFixed(1) || '0.0' },
+        { Métrica: 'Total de Reseñas', Valor: reporteData.value.total_resenas || 0 },
+        { Métrica: 'Reseñas de 5 Estrellas', Valor: reporteData.value.resenas_5_estrellas || 0 },
+        { Métrica: 'Reseñas Recientes (7 días)', Valor: reporteData.value.resenas_recientes || 0 }
     ])
-    XLSX.utils.book_append_sheet(wb, ws, 'Resumen')
+    XLSX.utils.book_append_sheet(wb, wsResumen, 'Resumen')
+    
+    // Hoja 2: Distribución
+    if (reporteData.value.distribucion) {
+        const wsDistribucion = XLSX.utils.json_to_sheet([
+            { Estrellas: '1 Estrella', Cantidad: reporteData.value.distribucion[0] },
+            { Estrellas: '2 Estrellas', Cantidad: reporteData.value.distribucion[1] },
+            { Estrellas: '3 Estrellas', Cantidad: reporteData.value.distribucion[2] },
+            { Estrellas: '4 Estrellas', Cantidad: reporteData.value.distribucion[3] },
+            { Estrellas: '5 Estrellas', Cantidad: reporteData.value.distribucion[4] }
+        ])
+        XLSX.utils.book_append_sheet(wb, wsDistribucion, 'Distribución')
+    }
+    
+    // Hoja 3: Comentarios
+    if (reporteData.value.comentarios_recientes?.length > 0) {
+        const wsComentarios = XLSX.utils.json_to_sheet(
+            reporteData.value.comentarios_recientes.map(c => ({
+                Paciente: c.nombre_paciente,
+                Puntuación: c.puntuacion,
+                Comentario: c.comentario || 'Sin comentario',
+                Fecha: c.fecha
+            }))
+        )
+        XLSX.utils.book_append_sheet(wb, wsComentarios, 'Comentarios')
+    }
+    
     XLSX.writeFile(wb, 'reporte_calificaciones.xlsx')
+    console.log('📊 Excel exportado')
 }
 </script>
 
