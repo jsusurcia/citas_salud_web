@@ -87,20 +87,24 @@
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <!-- Gráfico 1: Distribución -->
                 <div class="bg-white rounded-lg p-6 shadow-sm border border-gray-100">
-                    <div class="mb-6">
+                    <div class="mb-4">
                         <h3 class="text-lg font-bold text-gray-900">Distribución de Calificaciones</h3>
                         <p class="text-sm text-gray-600">Calificaciones de pacientes por estrellas.</p>
                     </div>
-                    <canvas ref="chartDistribucion" class="w-full"></canvas>
+                    <div style="height: 350px; width: 100%;">
+                        <canvas ref="chartDistribucion"></canvas>
+                    </div>
                 </div>
 
                 <!-- Gráfico 2: Tendencia -->
                 <div class="bg-white rounded-lg p-6 shadow-sm border border-gray-100">
-                    <div class="mb-6">
+                    <div class="mb-4">
                         <h3 class="text-lg font-bold text-gray-900">Tendencia de Calificaciones</h3>
                         <p class="text-sm text-gray-600">Calificación promedio a lo largo del tiempo.</p>
                     </div>
-                    <canvas ref="chartTendencia" class="w-full"></canvas>
+                    <div style="height: 350px; width: 100%;">
+                        <canvas ref="chartTendencia"></canvas>
+                    </div>
                 </div>
             </div>
 
@@ -108,23 +112,24 @@
             <div class="bg-white rounded-lg p-6 shadow-sm border border-gray-100">
                 <div class="mb-6">
                     <h3 class="text-lg font-bold text-gray-900">Comentarios Recientes de Pacientes</h3>
-                    <p class="text-sm text-gray-600">Últimas reseñas de los pacientes.</p>
+                    <p class="text-sm text-gray-600">Últimas reseñas de los pacientes (últimos 30 días).</p>
                 </div>
                 
-                <div v-if="reporteData.comentarios_recientes && reporteData.comentarios_recientes.length > 0" class="space-y-4">
+                
+                <div v-if="reporteData.comentarios_recientes?.length > 0" class="space-y-4">
                     <div 
-                        v-for="comentario in reporteData.comentarios_recientes" 
-                        :key="comentario.id_calificacion"
+                        v-for="(comentario, index) in reporteData.comentarios_recientes" 
+                        :key="comentario.id_calificacion || index"
                         class="pb-4 border-b border-gray-100 last:border-0"
                     >
                         <div class="flex justify-between items-start mb-2">
-                            <h4 class="font-bold text-gray-900">{{ comentario.nombre_paciente }}</h4>
+                            <h4 class="font-bold text-gray-900">{{ comentario.nombre_paciente || 'Paciente Anónimo' }}</h4>
                             <div class="flex items-center gap-1">
                                 <i 
                                     v-for="n in 5" 
                                     :key="n"
                                     class="fas fa-star text-sm"
-                                    :class="n <= comentario.puntuacion ? 'text-yellow-400' : 'text-gray-300'"
+                                    :class="n <= (comentario.puntuacion || 0) ? 'text-yellow-400' : 'text-gray-300'"
                                 ></i>
                             </div>
                         </div>
@@ -225,8 +230,13 @@ const handleGenerarReporte = async (filtros) => {
         
         reporteData.value = data
         
+        // 🔥 FIX CRÍTICO: Esperar a que Vue renderice el DOM + tiempo extra
         await nextTick()
-        crearGraficos()
+        
+        // Esperar un tick adicional para asegurar que los canvas existan
+        setTimeout(() => {
+            crearGraficos()
+        }, 100)
         
         console.log('✅ Reporte renderizado correctamente')
     } catch (error) {
@@ -238,139 +248,210 @@ const handleGenerarReporte = async (filtros) => {
 }
 
 const crearGraficos = () => {
+    console.log('📊 Intentando crear gráficos...')
+    console.log('   - chartDistribucion.value:', chartDistribucion.value ? '✅ Existe' : '❌ No existe')
+    console.log('   - chartTendencia.value:', chartTendencia.value ? '✅ Existe' : '❌ No existe')
+    console.log('   - reporteData.value:', reporteData.value)
+    
     // Destruir gráficos previos
     if (chartDistribucionInstance) {
+        console.log('🗑️ Destruyendo gráfico de distribución anterior')
         chartDistribucionInstance.destroy()
         chartDistribucionInstance = null
     }
     if (chartTendenciaInstance) {
+        console.log('🗑️ Destruyendo gráfico de tendencia anterior')
         chartTendenciaInstance.destroy()
         chartTendenciaInstance = null
     }
 
-    console.log('📊 Creando gráficos...')
-    console.log('   - Distribución:', reporteData.value.distribucion)
-    console.log('   - Tendencia labels:', reporteData.value.tendencia.labels)
-    console.log('   - Tendencia data:', reporteData.value.tendencia.data)
+    if (!reporteData.value) {
+        console.error('❌ No hay datos de reporte disponibles')
+        return
+    }
+
+    console.log('   - Distribución data:', reporteData.value.distribucion)
+    console.log('   - Tendencia labels:', reporteData.value.tendencia?.labels)
+    console.log('   - Tendencia data:', reporteData.value.tendencia?.data)
 
     // Gráfico de Distribución
-    if (chartDistribucion.value && reporteData.value.distribucion) {
-        const ctx = chartDistribucion.value.getContext('2d')
-        chartDistribucionInstance = new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: ['1 Estrella', '2 Estrellas', '3 Estrellas', '4 Estrellas', '5 Estrellas'],
-                datasets: [{
-                    label: 'Número de Reseñas',
-                    data: reporteData.value.distribucion,
-                    backgroundColor: '#14b8a6',
-                    borderRadius: 6
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: true,
-                plugins: {
-                    legend: { 
-                        display: true, 
-                        position: 'bottom',
-                        labels: {
-                            padding: 15,
-                            font: { size: 12 }
+    if (chartDistribucion.value) {
+        try {
+            const distribucionData = reporteData.value.distribucion || [0, 0, 0, 0, 0]
+            console.log('📊 Creando gráfico de distribución con data:', distribucionData)
+            
+            const ctx = chartDistribucion.value.getContext('2d')
+            chartDistribucionInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['1 Estrella', '2 Estrellas', '3 Estrellas', '4 Estrellas', '5 Estrellas'],
+                    datasets: [{
+                        label: 'Número de Reseñas',
+                        data: distribucionData,
+                        backgroundColor: [
+                            '#ef4444',  // Rojo para 1 estrella
+                            '#f97316',  // Naranja para 2 estrellas
+                            '#eab308',  // Amarillo para 3 estrellas
+                            '#84cc16',  // Lima para 4 estrellas
+                            '#22c55e'   // Verde para 5 estrellas
+                        ],
+                        borderRadius: 8,
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { 
+                            display: false
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(0, 0, 0, 0.9)',
+                            padding: 16,
+                            titleFont: { size: 14, weight: 'bold' },
+                            bodyFont: { size: 13 },
+                            displayColors: true,
+                            callbacks: {
+                                label: function(context) {
+                                    return 'Reseñas: ' + context.parsed.y
+                                }
+                            }
                         }
                     },
-                    tooltip: {
-                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                        padding: 12,
-                        titleFont: { size: 14 },
-                        bodyFont: { size: 13 }
-                    }
-                },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        ticks: { 
-                            precision: 0,
-                            font: { size: 12 }
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: { 
+                                precision: 0,
+                                font: { size: 13 },
+                                stepSize: 1,
+                                color: '#4b5563'
+                            },
+                            grid: { 
+                                color: 'rgba(0, 0, 0, 0.06)',
+                                drawBorder: false
+                            },
+                            border: { display: false }
                         },
-                        grid: { color: 'rgba(0, 0, 0, 0.05)' }
+                        x: {
+                            ticks: { 
+                                font: { size: 12 },
+                                color: '#4b5563'
+                            },
+                            grid: { display: false },
+                            border: { display: false }
+                        }
                     },
-                    x: {
-                        ticks: { font: { size: 12 } },
-                        grid: { display: false }
+                    layout: {
+                        padding: {
+                            top: 20,
+                            bottom: 10,
+                            left: 10,
+                            right: 10
+                        }
                     }
                 }
-            }
-        })
-        console.log('✅ Gráfico de distribución creado')
+            })
+            console.log('✅ Gráfico de distribución creado exitosamente')
+        } catch (error) {
+            console.error('❌ Error al crear gráfico de distribución:', error)
+        }
     } else {
-        console.warn('⚠️ No se pudo crear el gráfico de distribución')
+        console.warn('⚠️ Elemento canvas de distribución no existe en el DOM')
     }
 
     // Gráfico de Tendencia
-    if (chartTendencia.value && reporteData.value.tendencia) {
-        const ctx = chartTendencia.value.getContext('2d')
-        chartTendenciaInstance = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: reporteData.value.tendencia.labels,
-                datasets: [{
-                    label: 'Calificación Promedio',
-                    data: reporteData.value.tendencia.data,
-                    borderColor: '#14b8a6',
-                    backgroundColor: 'rgba(20, 184, 166, 0.1)',
-                    tension: 0.3,
-                    fill: true,
-                    pointRadius: 4,
-                    pointBackgroundColor: '#14b8a6',
-                    pointBorderColor: '#fff',
-                    pointBorderWidth: 2
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: true,
-                plugins: {
-                    legend: { 
-                        display: true, 
-                        position: 'bottom',
-                        labels: {
-                            padding: 15,
-                            font: { size: 12 }
-                        }
-                    },
-                    tooltip: {
-                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                        padding: 12,
-                        titleFont: { size: 14 },
-                        bodyFont: { size: 13 },
-                        callbacks: {
-                            label: (context) => {
-                                return `Promedio: ${context.parsed.y.toFixed(1)} estrellas`
+    if (chartTendencia.value) {
+        try {
+            const tendencia = reporteData.value.tendencia || { labels: [], data: [] }
+            console.log('📈 Creando gráfico de tendencia con labels:', tendencia.labels, 'data:', tendencia.data)
+            
+            const ctx = chartTendencia.value.getContext('2d')
+            chartTendenciaInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: tendencia.labels,
+                    datasets: [{
+                        label: 'Calificación Promedio',
+                        data: tendencia.data,
+                        borderColor: '#14b8a6',
+                        backgroundColor: 'rgba(20, 184, 166, 0.15)',
+                        tension: 0.4,
+                        fill: true,
+                        pointRadius: 6,
+                        pointBackgroundColor: '#14b8a6',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 3,
+                        pointHoverRadius: 8,
+                        pointHoverBackgroundColor: '#0d9488',
+                        pointHoverBorderWidth: 3,
+                        borderWidth: 3
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { 
+                            display: false
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(0, 0, 0, 0.9)',
+                            padding: 16,
+                            titleFont: { size: 14, weight: 'bold' },
+                            bodyFont: { size: 13 },
+                            displayColors: true,
+                            callbacks: {
+                                label: (context) => {
+                                    return `Promedio: ${context.parsed.y.toFixed(1)} ⭐`
+                                }
                             }
                         }
-                    }
-                },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        max: 5,
-                        ticks: { 
-                            stepSize: 1,
-                            font: { size: 12 }
-                        },
-                        grid: { color: 'rgba(0, 0, 0, 0.05)' }
                     },
-                    x: {
-                        ticks: { font: { size: 12 } },
-                        grid: { display: false }
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 5,
+                            ticks: { 
+                                stepSize: 1,
+                                font: { size: 13 },
+                                color: '#4b5563',
+                                callback: function(value) {
+                                    return value + ' ⭐'
+                                }
+                            },
+                            grid: { 
+                                color: 'rgba(0, 0, 0, 0.06)',
+                                drawBorder: false
+                            },
+                            border: { display: false }
+                        },
+                        x: {
+                            ticks: { 
+                                font: { size: 12 },
+                                color: '#4b5563'
+                            },
+                            grid: { display: false },
+                            border: { display: false }
+                        }
+                    },
+                    layout: {
+                        padding: {
+                            top: 20,
+                            bottom: 10,
+                            left: 10,
+                            right: 10
+                        }
                     }
                 }
-            }
-        })
-        console.log('✅ Gráfico de tendencia creado')
+            })
+            console.log('✅ Gráfico de tendencia creado exitosamente')
+        } catch (error) {
+            console.error('❌ Error al crear gráfico de tendencia:', error)
+        }
     } else {
-        console.warn('⚠️ No se pudo crear el gráfico de tendencia')
+        console.warn('⚠️ Elemento canvas de tendencia no existe en el DOM')
     }
 }
 
@@ -387,31 +468,195 @@ const exportarPDF = () => {
     if (!reporteData.value) return
     
     const doc = new jsPDF()
+    let yPosition = 20
     
-    // Título
-    doc.setFontSize(18)
-    doc.text('Reporte de Calificaciones de Pacientes', 14, 20)
+    // ========== ENCABEZADO ==========
+    doc.setFontSize(20)
+    doc.setTextColor(20, 184, 166)
+    doc.text('Reporte de Calificaciones de Pacientes', 14, yPosition)
     
-    // Fecha del reporte
+    yPosition += 8
     doc.setFontSize(10)
-    doc.text(`Generado el: ${new Date().toLocaleDateString('es-ES')}`, 14, 28)
+    doc.setTextColor(100, 100, 100)
+    const fechaCompleta = new Date().toLocaleDateString('es-ES', { 
+        weekday: 'long', 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric' 
+    })
+    doc.text(`Generado el: ${fechaCompleta}`, 14, yPosition)
     
-    // Tabla de KPIs
+    doc.setLineWidth(0.5)
+    doc.setDrawColor(200, 200, 200)
+    doc.line(14, yPosition + 3, 196, yPosition + 3)
+    
+    yPosition += 10
+    
+    // ========== TABLA DE KPIs ==========
+    doc.setFontSize(14)
+    doc.setTextColor(0, 0, 0)
+    doc.text('Resumen General', 14, yPosition)
+    yPosition += 5
+    
     autoTable(doc, {
-        startY: 35,
+        startY: yPosition,
         head: [['Métrica', 'Valor']],
         body: [
             ['Calificación Promedio', `${reporteData.value.calificacion_promedio?.toFixed(1) || '0.0'} / 5.0`],
             ['Total de Reseñas', reporteData.value.total_resenas || 0],
             ['Reseñas de 5 Estrellas', reporteData.value.resenas_5_estrellas || 0],
-            ['Reseñas Recientes (7 días)', reporteData.value.resenas_recientes || 0]
+            ['Reseñas Recientes (últimos 7 días)', reporteData.value.resenas_recientes || 0]
         ],
-        theme: 'grid',
-        headStyles: { fillColor: [20, 184, 166] }
+        theme: 'striped',
+        headStyles: { 
+            fillColor: [20, 184, 166],
+            fontSize: 11,
+            fontStyle: 'bold',
+            halign: 'left'
+        },
+        bodyStyles: {
+            fontSize: 10,
+            textColor: [60, 60, 60]
+        },
+        columnStyles: {
+            0: { cellWidth: 80, fontStyle: 'bold' },
+            1: { cellWidth: 'auto', halign: 'right' }
+        },
+        margin: { left: 14, right: 14 }
     })
     
-    doc.save('reporte_calificaciones.pdf')
-    console.log('📄 PDF exportado')
+    yPosition = doc.lastAutoTable.finalY + 12
+    
+    // ========== DISTRIBUCIÓN POR ESTRELLAS ==========
+    doc.setFontSize(14)
+    doc.setTextColor(0, 0, 0)
+    doc.text('Distribución de Calificaciones', 14, yPosition)
+    yPosition += 5
+    
+    if (reporteData.value.distribucion) {
+        const distribucionBody = [
+            ['1 Estrella', reporteData.value.distribucion[0] || 0],
+            ['2 Estrellas', reporteData.value.distribucion[1] || 0],
+            ['3 Estrellas', reporteData.value.distribucion[2] || 0],
+            ['4 Estrellas', reporteData.value.distribucion[3] || 0],
+            ['5 Estrellas', reporteData.value.distribucion[4] || 0]
+        ]
+        
+        autoTable(doc, {
+            startY: yPosition,
+            head: [['Calificación', 'Cantidad']],
+            body: distribucionBody,
+            theme: 'grid',
+            headStyles: { 
+                fillColor: [245, 158, 11],
+                fontSize: 11,
+                fontStyle: 'bold',
+                halign: 'left'
+            },
+            bodyStyles: {
+                fontSize: 10,
+                textColor: [60, 60, 60]
+            },
+            columnStyles: {
+                0: { cellWidth: 80, fontStyle: 'bold' },
+                1: { cellWidth: 'auto', halign: 'right' }
+            },
+            margin: { left: 14, right: 14 }
+        })
+        
+        yPosition = doc.lastAutoTable.finalY + 12
+    }
+    
+    // ========== COMENTARIOS RECIENTES ==========
+    if (reporteData.value.comentarios_recientes && reporteData.value.comentarios_recientes.length > 0) {
+        
+        // Verificar si necesitamos una nueva página
+        if (yPosition > 240) {
+            doc.addPage()
+            yPosition = 20
+        }
+        
+        doc.setFontSize(14)
+        doc.setTextColor(0, 0, 0)
+        doc.text('Comentarios Recientes de Pacientes', 14, yPosition)
+        yPosition += 5
+        
+        const comentariosBody = reporteData.value.comentarios_recientes.map(c => {
+            const fecha = new Date(c.fecha).toLocaleDateString('es-ES')
+            const comentario = c.comentario || 'Sin comentario'
+            
+            return [
+                c.nombre_paciente || 'Paciente Anónimo',
+                `${c.puntuacion || 0} estrellas`,
+                comentario.length > 80 ? comentario.substring(0, 77) + '...' : comentario,
+                fecha
+            ]
+        })
+        
+        autoTable(doc, {
+            startY: yPosition,
+            head: [['Paciente', 'Calificación', 'Comentario', 'Fecha']],
+            body: comentariosBody,
+            theme: 'striped',
+            headStyles: { 
+                fillColor: [139, 92, 246],
+                fontSize: 10,
+                fontStyle: 'bold',
+                halign: 'left'
+            },
+            bodyStyles: {
+                fontSize: 9,
+                textColor: [60, 60, 60]
+            },
+            columnStyles: {
+                0: { cellWidth: 40, fontStyle: 'bold' },
+                1: { cellWidth: 25, halign: 'center' },
+                2: { cellWidth: 80 },
+                3: { cellWidth: 30, halign: 'center' }
+            },
+            margin: { left: 14, right: 14 },
+            styles: {
+                overflow: 'linebreak',
+                cellPadding: 3
+            }
+        })
+    } else {
+        if (yPosition > 240) {
+            doc.addPage()
+            yPosition = 20
+        }
+        
+        doc.setFontSize(14)
+        doc.text('Comentarios Recientes de Pacientes', 14, yPosition)
+        yPosition += 10
+        
+        doc.setFontSize(10)
+        doc.setTextColor(150, 150, 150)
+        doc.text('No hay comentarios disponibles para el período seleccionado', 14, yPosition)
+    }
+    
+    // ========== PIE DE PÁGINA ==========
+    const pageCount = doc.internal.getNumberOfPages()
+    for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i)
+        doc.setFontSize(8)
+        doc.setTextColor(150, 150, 150)
+        doc.text(
+            `Página ${i} de ${pageCount}`,
+            doc.internal.pageSize.getWidth() / 2,
+            doc.internal.pageSize.getHeight() - 10,
+            { align: 'center' }
+        )
+    }
+    
+    // Guardar con nombre que incluye fecha
+    const nombreArchivo = `reporte_calificaciones_${new Date().toLocaleDateString('es-ES').replace(/\//g, '-')}.pdf`
+    doc.save(nombreArchivo)
+    
+    console.log('📄 PDF exportado exitosamente:')
+    console.log('   - Archivo:', nombreArchivo)
+    console.log('   - Páginas:', pageCount)
+    console.log('   - Comentarios incluidos:', reporteData.value.comentarios_recientes?.length || 0)
 }
 
 const exportarExcel = () => {
@@ -419,47 +664,171 @@ const exportarExcel = () => {
     
     const wb = XLSX.utils.book_new()
     
-    // Hoja 1: Resumen
-    const wsResumen = XLSX.utils.json_to_sheet([
-        { Métrica: 'Calificación Promedio', Valor: reporteData.value.calificacion_promedio?.toFixed(1) || '0.0' },
-        { Métrica: 'Total de Reseñas', Valor: reporteData.value.total_resenas || 0 },
-        { Métrica: 'Reseñas de 5 Estrellas', Valor: reporteData.value.resenas_5_estrellas || 0 },
-        { Métrica: 'Reseñas Recientes (7 días)', Valor: reporteData.value.resenas_recientes || 0 }
-    ])
-    XLSX.utils.book_append_sheet(wb, wsResumen, 'Resumen')
+    // ========== HOJA 1: RESUMEN GENERAL ==========
+    const fechaGeneracion = new Date().toLocaleDateString('es-ES', { 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric' 
+    })
     
-    // Hoja 2: Distribución
+    const wsResumen = XLSX.utils.aoa_to_sheet([
+        ['REPORTE DE CALIFICACIONES DE PACIENTES'],
+        [`Generado el: ${fechaGeneracion}`],
+        [],
+        ['RESUMEN GENERAL'],
+        ['Métrica', 'Valor'],
+        ['Calificación Promedio', `${reporteData.value.calificacion_promedio?.toFixed(1) || '0.0'} / 5.0`],
+        ['Total de Reseñas', reporteData.value.total_resenas || 0],
+        ['Reseñas de 5 Estrellas', reporteData.value.resenas_5_estrellas || 0],
+        ['Reseñas Recientes (últimos 7 días)', reporteData.value.resenas_recientes || 0]
+    ])
+    
+    wsResumen['!cols'] = [{ wch: 35 }, { wch: 20 }]
+    XLSX.utils.book_append_sheet(wb, wsResumen, 'Resumen General')
+    
+    // ========== HOJA 2: DISTRIBUCIÓN POR ESTRELLAS ==========
     if (reporteData.value.distribucion) {
-        const wsDistribucion = XLSX.utils.json_to_sheet([
-            { Estrellas: '1 Estrella', Cantidad: reporteData.value.distribucion[0] },
-            { Estrellas: '2 Estrellas', Cantidad: reporteData.value.distribucion[1] },
-            { Estrellas: '3 Estrellas', Cantidad: reporteData.value.distribucion[2] },
-            { Estrellas: '4 Estrellas', Cantidad: reporteData.value.distribucion[3] },
-            { Estrellas: '5 Estrellas', Cantidad: reporteData.value.distribucion[4] }
-        ])
+        const total = reporteData.value.total_resenas || 1
+        
+        const distribucionData = [
+            ['DISTRIBUCIÓN DE CALIFICACIONES POR ESTRELLAS'],
+            [],
+            ['Calificación', 'Cantidad de Reseñas', 'Porcentaje'],
+            ['1 Estrella', reporteData.value.distribucion[0] || 0, `${((reporteData.value.distribucion[0] || 0) / total * 100).toFixed(1)}%`],
+            ['2 Estrellas', reporteData.value.distribucion[1] || 0, `${((reporteData.value.distribucion[1] || 0) / total * 100).toFixed(1)}%`],
+            ['3 Estrellas', reporteData.value.distribucion[2] || 0, `${((reporteData.value.distribucion[2] || 0) / total * 100).toFixed(1)}%`],
+            ['4 Estrellas', reporteData.value.distribucion[3] || 0, `${((reporteData.value.distribucion[3] || 0) / total * 100).toFixed(1)}%`],
+            ['5 Estrellas', reporteData.value.distribucion[4] || 0, `${((reporteData.value.distribucion[4] || 0) / total * 100).toFixed(1)}%`],
+            [],
+            ['TOTAL', reporteData.value.total_resenas || 0, '100.0%']
+        ]
+        
+        const wsDistribucion = XLSX.utils.aoa_to_sheet(distribucionData)
+        wsDistribucion['!cols'] = [{ wch: 25 }, { wch: 20 }, { wch: 15 }]
         XLSX.utils.book_append_sheet(wb, wsDistribucion, 'Distribución')
     }
     
-    // Hoja 3: Comentarios
-    if (reporteData.value.comentarios_recientes?.length > 0) {
-        const wsComentarios = XLSX.utils.json_to_sheet(
-            reporteData.value.comentarios_recientes.map(c => ({
-                Paciente: c.nombre_paciente,
-                Puntuación: c.puntuacion,
-                Comentario: c.comentario || 'Sin comentario',
-                Fecha: c.fecha
-            }))
-        )
-        XLSX.utils.book_append_sheet(wb, wsComentarios, 'Comentarios')
+    // ========== HOJA 3: TENDENCIA MENSUAL ==========
+    if (reporteData.value.tendencia && reporteData.value.tendencia.labels.length > 0) {
+        const tendenciaData = [
+            ['TENDENCIA DE CALIFICACIONES'],
+            [],
+            ['Período', 'Calificación Promedio']
+        ]
+        
+        reporteData.value.tendencia.labels.forEach((label, index) => {
+            tendenciaData.push([
+                label,
+                reporteData.value.tendencia.data[index]?.toFixed(1) || '0.0'
+            ])
+        })
+        
+        const wsTendencia = XLSX.utils.aoa_to_sheet(tendenciaData)
+        wsTendencia['!cols'] = [{ wch: 20 }, { wch: 25 }]
+        XLSX.utils.book_append_sheet(wb, wsTendencia, 'Tendencia')
     }
     
-    XLSX.writeFile(wb, 'reporte_calificaciones.xlsx')
-    console.log('📊 Excel exportado')
+    // ========== HOJA 4: COMENTARIOS DETALLADOS ==========
+    if (reporteData.value.comentarios_recientes && reporteData.value.comentarios_recientes.length > 0) {
+        const comentariosData = [
+            ['COMENTARIOS RECIENTES DE PACIENTES'],
+            [`Total de comentarios: ${reporteData.value.comentarios_recientes.length}`],
+            [],
+            ['No.', 'Paciente', 'Calificación', 'Comentario', 'Fecha']
+        ]
+        
+        reporteData.value.comentarios_recientes.forEach((c, index) => {
+            const fecha = new Date(c.fecha).toLocaleDateString('es-ES')
+            
+            comentariosData.push([
+                index + 1,
+                c.nombre_paciente || 'Paciente Anónimo',
+                `${c.puntuacion || 0} estrellas`,
+                c.comentario || 'Sin comentario',
+                fecha
+            ])
+        })
+        
+        const wsComentarios = XLSX.utils.aoa_to_sheet(comentariosData)
+        wsComentarios['!cols'] = [
+            { wch: 5 },   // No.
+            { wch: 35 },  // Paciente
+            { wch: 15 },  // Calificación
+            { wch: 60 },  // Comentario
+            { wch: 15 }   // Fecha
+        ]
+        
+        XLSX.utils.book_append_sheet(wb, wsComentarios, 'Comentarios')
+    } else {
+        const wsComentariosVacio = XLSX.utils.aoa_to_sheet([
+            ['COMENTARIOS RECIENTES DE PACIENTES'],
+            [],
+            ['No hay comentarios disponibles para el período seleccionado']
+        ])
+        wsComentariosVacio['!cols'] = [{ wch: 60 }]
+        XLSX.utils.book_append_sheet(wb, wsComentariosVacio, 'Comentarios')
+    }
+    
+    // ========== HOJA 5: ESTADÍSTICAS ADICIONALES ==========
+    const satisfaccion = reporteData.value.resenas_5_estrellas + (reporteData.value.distribucion?.[3] || 0)
+    const insatisfaccion = (reporteData.value.distribucion?.[0] || 0) + (reporteData.value.distribucion?.[1] || 0)
+    const total = reporteData.value.total_resenas || 1
+    
+    const estadisticas = [
+        ['ESTADÍSTICAS ADICIONALES'],
+        [],
+        ['Métrica', 'Valor'],
+        ['Promedio General', `${reporteData.value.calificacion_promedio?.toFixed(2) || '0.00'} estrellas`],
+        ['Total de Evaluaciones', reporteData.value.total_resenas || 0],
+        [],
+        ['DESGLOSE POR CALIFICACIÓN'],
+        ['Evaluaciones Excelentes (5 estrellas)', reporteData.value.resenas_5_estrellas || 0],
+        ['Evaluaciones Buenas (4 estrellas)', reporteData.value.distribucion?.[3] || 0],
+        ['Evaluaciones Regulares (3 estrellas)', reporteData.value.distribucion?.[2] || 0],
+        ['Evaluaciones Malas (2 estrellas)', reporteData.value.distribucion?.[1] || 0],
+        ['Evaluaciones Pésimas (1 estrella)', reporteData.value.distribucion?.[0] || 0],
+        [],
+        ['ÍNDICES DE SATISFACCIÓN'],
+        ['Satisfacción (4-5 estrellas)', `${satisfaccion} (${(satisfaccion / total * 100).toFixed(1)}%)`],
+        ['Insatisfacción (1-2 estrellas)', `${insatisfaccion} (${(insatisfaccion / total * 100).toFixed(1)}%)`],
+        ['Neutral (3 estrellas)', `${reporteData.value.distribucion?.[2] || 0} (${((reporteData.value.distribucion?.[2] || 0) / total * 100).toFixed(1)}%)`]
+    ]
+    
+    const wsEstadisticas = XLSX.utils.aoa_to_sheet(estadisticas)
+    wsEstadisticas['!cols'] = [{ wch: 35 }, { wch: 30 }]
+    XLSX.utils.book_append_sheet(wb, wsEstadisticas, 'Estadísticas')
+    
+    // Guardar archivo con nombre que incluye fecha
+    const nombreArchivo = `reporte_calificaciones_${new Date().toLocaleDateString('es-ES').replace(/\//g, '-')}.xlsx`
+    XLSX.writeFile(wb, nombreArchivo)
+    
+    console.log('📊 Excel exportado exitosamente:')
+    console.log('   - Archivo:', nombreArchivo)
+    console.log('   - Hojas:', wb.SheetNames.length)
+    console.log('   - Comentarios incluidos:', reporteData.value.comentarios_recientes?.length || 0)
 }
 </script>
 
 <style scoped>
+/* Asegurar que los canvas se rendericen correctamente */
 canvas {
-    max-height: 300px;
+    display: block !important;
+    box-sizing: border-box !important;
+}
+
+/* Animaciones suaves */
+.space-y-6 > * {
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 </style>
