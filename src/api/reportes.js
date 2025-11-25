@@ -2,30 +2,33 @@ import apiClient from './auth.js'
 
 /**
  * Obtiene el reporte de citas por especialidad desde la API.
+ * Usado en el gráfico de barras actual.
  */
 export const getReporteCitasPorEspecialidadApi = async (filtros) => {
   try {
     console.log('🔍 Obteniendo reporte (especialidad) con filtros:', filtros)
     
-    const res = await apiClient.get('/reportes/citas_por_especialidad', {
-      params: {
-        fecha_inicio: filtros.fechaInicio,
-        fecha_fin: filtros.fechaFin
-      }
-    })
+    // Preparamos los parámetros
+    const params = {
+      fecha_inicio: filtros.fechaInicio,
+      fecha_fin: filtros.fechaFin
+    };
+
+    // Solo añadimos la especialidad si existe y no está vacía
+    if (filtros.idEspecialidad) {
+      params.id_especialidad = filtros.idEspecialidad;
+    }
+
+    const res = await apiClient.get('/reportes/citas_por_especialidad', { params })
     
     const response = res.data
 
+    // Maneja la respuesta ItemListResponse
     if (response.status === 'success' && Array.isArray(response.data)) {
-      console.log('✅ Reporte (especialidad) [ItemListResponse]:', response.data.length, 'registros')
       return response.data
-    } 
-    else if (Array.isArray(response)) {
-      console.log('✅ Reporte (especialidad) [Array Directo]:', response.length, 'registros')
+    } else if (Array.isArray(response)) {
       return response
-    }
-    else {
-      console.error('❌ Formato de respuesta inesperado (especialidad):', response)
+    } else {
       throw { detail: 'Formato de respuesta inesperado del servidor' }
     }
 
@@ -36,31 +39,67 @@ export const getReporteCitasPorEspecialidadApi = async (filtros) => {
 }
 
 /**
- * Obtiene el reporte de citas diarias desde la API.
+ * Obtiene el reporte de citas filtrado por personal médico.
+ * (Agregado por si decides filtrar por médico en el futuro)
+ */
+export const getReporteCitasPorPersonalApi = async (filtros) => {
+  try {
+    console.log('🔍 Obteniendo reporte (personal) con filtros:', filtros)
+    
+    const params = {
+      fecha_inicio: filtros.fechaInicio,
+      fecha_fin: filtros.fechaFin
+    };
+
+    if (filtros.idEspecialidad) {
+      params.id_especialidad = filtros.idEspecialidad;
+    }
+
+    // Asegúrate que esta ruta exista en tu backend si la vas a usar
+    const res = await apiClient.get('/reportes/citas_por_personal', { params })
+    
+    const response = res.data
+
+    if (response.status === 'success' && Array.isArray(response.data)) {
+      return response.data
+    } else if (Array.isArray(response)) {
+      return response
+    } else {
+      throw { detail: 'Formato de respuesta inesperado del servidor' }
+    }
+
+  } catch (error) {
+    console.error('❌ Error en getReporteCitasPorPersonalApi:', error)
+    throw error.response?.data || { detail: error.message || 'Error al conectar' }
+  }
+}
+
+/**
+ * Obtiene el reporte de citas diarias.
+ * Recibe: { fechaInicio, fechaFin, idEspecialidad (opcional) }
  */
 export const getReporteCitasDiariasApi = async (filtros) => {
   try {
     console.log('🔍 Obteniendo reporte (diario) con filtros:', filtros)
     
-    const res = await apiClient.get('/reportes/citas_diarias', {
-      params: {
-        fecha_inicio: filtros.fechaInicio,
-        fecha_fin: filtros.fechaFin
-      }
-    })
+    const params = {
+      fecha_inicio: filtros.fechaInicio,
+      fecha_fin: filtros.fechaFin
+    };
+
+    if (filtros.idEspecialidad) {
+      params.id_especialidad = filtros.idEspecialidad;
+    }
+
+    const res = await apiClient.get('/reportes/citas_diarias', { params })
     
     const response = res.data
 
     if (response.status === 'success' && Array.isArray(response.data)) {
-      console.log('✅ Reporte (diario) [ItemListResponse]:', response.data.length, 'registros')
       return response.data
-    }
-    else if (Array.isArray(response)) {
-      console.log('✅ Reporte (diario) [Array Directo]:', response.length, 'registros')
+    } else if (Array.isArray(response)) {
       return response
-    }
-    else {
-      console.error('❌ Formato de respuesta inesperado (diario):', response)
+    } else {
       throw { detail: 'Formato de respuesta inesperado del servidor' }
     }
 
@@ -69,7 +108,6 @@ export const getReporteCitasDiariasApi = async (filtros) => {
     throw error.response?.data || { detail: error.message || 'Error al conectar' }
   }
 }
-
 // ========== NUEVA FUNCIÓN: REPORTE DE CALIFICACIONES ==========
 
 /**
