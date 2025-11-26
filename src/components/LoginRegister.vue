@@ -105,8 +105,8 @@ const handleLogin = async () => {
   try {
     // 1. LLAMAR A LA API DE LOGIN (que ahora devuelve 'status')
 
-    console.log("comprobando ando")
-    console.log(loginForm.correo)
+    //console.log("comprobando ando")
+    //console.log(loginForm.correo)
 
     const result = await loginApi(
       `${loginForm.correo}@citasalud.com`,
@@ -120,6 +120,9 @@ const handleLogin = async () => {
       const loginData = result.data
 
       //console.log(`✅ Login exitoso como: ${loginData.user.rol}`)
+
+      //console.log("el loginData")
+      //console.log(loginData)
 
       // 3. GUARDAR EN EL STORE
       authStore.login(loginData.access_token, loginData.user)
@@ -136,12 +139,12 @@ const handleLogin = async () => {
     } else if (result.status === 'requires_selection') {
       // --- CASO 2: SE REQUIERE SELECCIÓN DE ESPECIALIDAD ---
       // 'result.data' es { message, specialties, temp_token }
-      console.log('👨‍⚕️ Requiere selección de especialidad.')
+      //console.log('👨‍⚕️ Requiere selección de especialidad.')
       selectionData.value = result.data // <-- Guardamos los datos del Paso 2
       // No redirigimos, la UI reaccionará a 'selectionData'
     } else if (result.status === 'requires_validation') {
       // --- CASO X: Requiere validación por parte del administrador
-      console.log('👨‍💼 Login personal médico (Caso X) requiere validación.')
+      //console.log('👨‍💼 Login personal médico (Caso X) requiere validación.')
       router.push('/pendiente')
     }
 
@@ -171,7 +174,7 @@ const handleSelectSpecialty = async (specialtyId) => {
     )
 
     // 'finalLoginData' es { access_token, user }
-    console.log(`✅ Login completado como: ${finalLoginData.user.rol}`)
+    //console.log(`✅ Login completado como: ${finalLoginData.user.rol}`)
 
     // 2. GUARDAR EN EL STORE
     authStore.login(finalLoginData.access_token, finalLoginData.user)
@@ -245,7 +248,7 @@ const handleRegister = async () => {
 }
 
 const handleForgotPassword = () => {
-  console.log('Forgot password clicked')
+  //console.log('Forgot password clicked')
   // Aquí puedes agregar tu lógica de recuperación de contraseña
 }
 </script>
@@ -271,7 +274,7 @@ const handleForgotPassword = () => {
             <div class="flex">
 
               <input id="login-correo" v-model="loginForm.correo" type="text" placeholder="usuario" required
-                @input="loginForm.correo = loginForm.correo.replace(/@/g, '')"
+                maxlength="20" @input="loginForm.correo = loginForm.correo.replace(/[@ .]/g, '')"
                 class="w-full px-5 py-2 bg-gray-100 rounded-l-lg border-none outline-none text-sm text-gray-800 font-medium placeholder-gray-400 focus:ring-2 focus:ring-[#10A697] focus:z-10 relative">
 
               <span
@@ -286,6 +289,7 @@ const handleForgotPassword = () => {
           <div class="mb-5 text-left">
             <label for="login-contrasena" class="block mb-2 text-sm font-semibold text-gray-600">Contraseña</label>
             <input id="login-contrasena" v-model="loginForm.contrasena" type="password" placeholder="******" required
+              maxlength="20"
               class="w-full px-5 py-2 bg-gray-100 rounded-lg border-none outline-none text-sm text-gray-800 font-medium placeholder-gray-400 focus:ring-2 focus:ring-[#10A697]">
           </div>
 
@@ -307,6 +311,16 @@ const handleForgotPassword = () => {
             <span v-if="loading">Cargando...</span>
             <span v-else>Iniciar sesión</span>
           </button>
+
+          <!-- Botón para ir a Registro (Solo Móvil) -->
+          <div class="mt-4 text-center md:hidden">
+            <p class="text-sm text-gray-600">
+              ¿No tienes una cuenta?
+              <button type="button" @click="showRegister" class="text-[#10A697] font-semibold hover:underline">
+                Regístrate aquí
+              </button>
+            </p>
+          </div>
         </form>
 
         <div v-if="selectionData" class="w-full">
@@ -355,28 +369,30 @@ const handleForgotPassword = () => {
 
             <div class="mb-5 text-left">
               <label for="documento" class="block mb-2 text-sm font-semibold text-gray-600">N° de documento</label>
-              <input id="documento" v-model="registerForm.nro_documento" type="text"
+              <input id="documento" v-model="registerForm.nro_documento" type="text" inputmode="numeric" maxlength="8"
+                @input="registerForm.nro_documento = registerForm.nro_documento.replace(/\D/g, '')"
                 placeholder="Ingrese su nro. de documento" required
                 class="w-full px-5 py-2 bg-gray-100 rounded-lg border-none outline-none text-sm text-gray-800 font-medium placeholder-gray-400 focus:ring-2 focus:ring-[#10A697]">
             </div>
 
             <div class="mb-5 text-left">
               <label for="colegiatura" class="block mb-2 text-sm font-semibold text-gray-600">N° de colegiatura</label>
-              <input id="colegiatura" v-model="registerForm.nro_colegiatura" type="text" placeholder="Ingrese el CMP"
-                required
+              <input id="colegiatura" v-model="registerForm.nro_colegiatura" type="text" inputmode="numeric"
+                maxlength="6" @input="registerForm.nro_colegiatura = registerForm.nro_colegiatura.replace(/\D/g, '')"
+                placeholder="Ingrese el CMP" required
                 class="w-full px-5 py-2 bg-gray-100 rounded-lg border-none outline-none text-sm text-gray-800 font-medium placeholder-gray-400 focus:ring-2 focus:ring-[#10A697]">
             </div>
 
             <div class="mb-5 text-left">
-              <label for="register-correo" class="block mb-2 text-sm font-semibold text-gray-600">Correo
-                electrónico</label>
+              <label for="register-correo" class="block mb-2 text-sm font-semibold text-gray-600">
+                Correo electrónico
+              </label>
 
               <div class="flex">
 
-                <input id="register-correo" v-model="registerForm.correo" type="text" placeholder="usuario" required
-                  @input="registerForm.correo = registerForm.correo.replace(/@/g, '')"
+                <input id="register-correo" v-model="registerForm.correo" type="text" placeholder="usuario"
+                  maxlength="20" required @input="registerForm.correo = registerForm.correo.replace(/[@ .]/g, '')"
                   class="w-full px-5 py-2 bg-gray-100 rounded-l-lg border-none outline-none text-sm text-gray-800 font-medium placeholder-gray-400 focus:ring-2 focus:ring-[#10A697] focus:z-10 relative">
-
                 <span
                   class="inline-flex items-center px-3 text-sm text-gray-700 bg-gray-200 border border-l-0 border-gray-200 rounded-r-lg">
                   @citasalud.com
@@ -386,14 +402,16 @@ const handleForgotPassword = () => {
 
             <div class="mb-5 text-left">
               <label for="register-celular" class="block mb-2 text-sm font-semibold text-gray-600">Celular</label>
-              <input id="register-celular" v-model="registerForm.telefono" type="tel" placeholder="987654321" required
+              <input id="register-celular" v-model="registerForm.telefono" type="tel"
+                placeholder="Ingrese su número de celular" maxlength="9" required
+                @input="registerForm.telefono = registerForm.telefono.replace(/\D/g, '')"
                 class="w-full px-5 py-2 bg-gray-100 rounded-lg border-none outline-none text-sm text-gray-800 font-medium placeholder-gray-400 focus:ring-2 focus:ring-[#10A697]">
             </div>
 
             <div class="mb-5 text-left">
               <label for="register-contrasena" class="block mb-2 text-sm font-semibold text-gray-600">Contraseña</label>
               <input id="register-contrasena" v-model="registerForm.contrasena" type="password"
-                placeholder="Crea una contraseña" required
+                placeholder="Crea una contraseña" maxlength="20" required
                 class="w-full px-5 py-2 bg-gray-100 rounded-lg border-none outline-none text-sm text-gray-800 font-medium placeholder-gray-400 focus:ring-2 focus:ring-[#10A697]">
             </div>
 
@@ -401,7 +419,7 @@ const handleForgotPassword = () => {
               <label for="contrasena-confirmar" class="block mb-2 text-sm font-semibold text-gray-600">Confirmar
                 contraseña</label>
               <input id="contrasena-confirmar" v-model="registerForm.contrasenaConfirmar" type="password"
-                placeholder="Confirma tu contraseña" required
+                placeholder="Confirma tu contraseña" maxlength="20" required
                 class="w-full px-5 py-2 bg-gray-100 rounded-lg border-none outline-none text-sm text-gray-800 font-medium placeholder-gray-400 focus:ring-2 focus:ring-[#10A697]">
             </div>
 
@@ -445,6 +463,16 @@ const handleForgotPassword = () => {
               <span v-if="loading">Cargando...</span>
               <span v-else>Registrarse</span>
             </button>
+
+            <!-- Botón para ir a Login (Solo Móvil) -->
+            <div class="mt-4 text-center md:hidden">
+              <p class="text-sm text-gray-600">
+                ¿Ya tienes una cuenta?
+                <button type="button" @click="showLogin" class="text-[#10A697] font-semibold hover:underline">
+                  Inicia sesión aquí
+                </button>
+              </p>
+            </div>
           </div>
 
         </form>
@@ -633,5 +661,167 @@ const handleForgotPassword = () => {
   background-position: right 15px center;
   background-size: 12px;
   cursor: pointer;
+}
+
+/* ===============================================
+   RESPONSIVE DESIGN - MEDIA QUERIES
+   =============================================== */
+
+/* TABLET (768px - 1024px) */
+@media (max-width: 1024px) and (min-width: 768px) {
+  .container-box {
+    width: 90%;
+    max-width: 700px;
+    height: 550px;
+    margin: 20px auto;
+  }
+
+  .form-box {
+    padding: 30px;
+  }
+
+  .toggle-panel img {
+    width: 150px;
+    margin-bottom: 20px;
+  }
+
+  .toggle-panel h1 {
+    font-size: 18px;
+  }
+
+  .toggle-panel p {
+    font-size: 13px;
+  }
+}
+
+/* MOBILE (< 768px) */
+@media (max-width: 767px) {
+  .container-box {
+    width: 95%;
+    max-width: 400px;
+    height: auto;
+    min-height: 500px;
+    margin: 10px auto;
+    border-radius: 20px;
+  }
+
+  /* Hide the animated toggle panels on mobile */
+  .toggle-box {
+    display: none;
+  }
+
+  /* Stack forms vertically */
+  .form-box {
+    position: relative;
+    width: 100%;
+    height: auto;
+    min-height: auto;
+    right: 0 !important;
+    padding: 30px 20px;
+    transition: none;
+  }
+
+  /* Show only the active form */
+  .form-box.login {
+    display: flex;
+    visibility: visible;
+  }
+
+  .form-box.register {
+    display: none;
+    visibility: hidden;
+  }
+
+  .container-box.active .form-box.login {
+    display: none;
+    visibility: hidden;
+    right: 0 !important;
+  }
+
+  .container-box.active .form-box.register {
+    display: flex;
+    visibility: visible;
+    right: 0 !important;
+  }
+
+  /* Adjust form heights for mobile */
+  .form-box form {
+    max-height: none;
+  }
+
+  /* Reduce font sizes for mobile */
+  .form-box h1 {
+    font-size: 18px;
+    margin-bottom: 15px;
+  }
+
+  .form-box p {
+    font-size: 12px;
+    margin-bottom: 20px;
+  }
+
+  /* Adjust input sizing */
+  .form-box input,
+  .input-box select {
+    font-size: 14px;
+    padding: 10px 15px;
+  }
+
+  /* Adjust margins */
+  .form-box>form>div {
+    margin-bottom: 15px;
+  }
+
+  .input-box {
+    margin: 15px 0;
+  }
+
+  /* Ensure buttons are touch-friendly */
+  .form-box button {
+    height: 44px;
+    font-size: 15px;
+  }
+
+  /* Register form scrollable area */
+  .form-box.register .flex-grow {
+    max-height: 350px;
+    overflow-y: auto;
+  }
+}
+
+/* VERY SMALL MOBILE (< 400px) */
+@media (max-width: 399px) {
+  .container-box {
+    width: 98%;
+    margin: 5px auto;
+    padding: 0;
+  }
+
+  .form-box {
+    padding: 20px 15px;
+  }
+
+  .form-box h1 {
+    font-size: 16px;
+  }
+
+  .form-box p {
+    font-size: 11px;
+  }
+
+  /* Stack email input vertically on very small screens */
+  .form-box .flex {
+    flex-direction: column;
+  }
+
+  .form-box .flex input {
+    border-radius: 8px 8px 0 0 !important;
+  }
+
+  .form-box .flex span {
+    border-radius: 0 0 8px 8px !important;
+    padding: 10px;
+    text-align: center;
+  }
 }
 </style>

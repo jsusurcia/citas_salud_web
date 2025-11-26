@@ -10,41 +10,7 @@ import ChatView from "../views/ChatView.vue";
 import EspecialidadesView from "../views/EspecialidadesView.vue";
 import ReportesView from "../views/ReportesView.vue";
 import GeneradorReportesView from "../views/GeneradorReportesView.vue";
-
-// Implementar en la autenticación cuando se implemente
-// const routes = [
-//     { path: '/auth', component: AuthView },
-//     {
-//         path: '/',
-//         component: PendienteEvaluacionView,
-//         children: [
-//             { path: 'validacion_personal', component: ValidacionPersonalView },
-//             { path: 'pendiente', component: PendienteEvaluacionView },
-//             { path: 'disponibilidad_medico', component: DoctorsAvailabilityView },
-//             { path: 'citas_medico', component: DoctorsAppointmentView },
-//             { path: 'chat_medico', component: ChatView },
-//         ],
-//         meta: { requiresAuth: true }
-//     },
-// ]
-
-// const router = createRouter({
-//     history: createWebHistory(),
-//     routes,
-// });
-
-// router.beforeEach((to, from, next) => {
-//     const authStore = useAuthStore()
-//     if (to.meta.requiresAuth && !authStore.isAuthenticated) {
-//         next('/auth')
-//     } else {
-//         next()
-//     }
-// })
-
-// export default router
-
-
+import ScannerQRView from "../views/ScannerQRView.vue";
 
 
 const router = createRouter({
@@ -57,7 +23,7 @@ const router = createRouter({
                 // Redirigir según el rol del usuario
                 const authStore = useAuthStore()
                 const user = authStore.user
-                
+
                 if (user && user.rol === 'personal_medico') {
                     return '/personal_med/disponibilidad'
                 } else if (user && user.rol === 'admin') {
@@ -98,9 +64,14 @@ const router = createRouter({
             component: ChatView
         },
         {
+            path: "/personal_med/scanner",
+            "name": "scanner_medico",
+            component: ScannerQRView
+        },
+        {
             path: "/admin/especialidades",
-            "name" : "especialidades",
-            component : EspecialidadesView
+            "name": "especialidades",
+            component: EspecialidadesView
         },
         {
             path: "/admin/reportes",
@@ -118,11 +89,11 @@ const router = createRouter({
 // Protección de rutas
 router.beforeEach((to, from, next) => {
     const authStore = useAuthStore()
-    
+
     // Rutas públicas (no requieren autenticación)
     //const publicRoutes = ['/auth']
     const publicRoutes = ['/auth', '/pendiente']
-    
+
     // Si la ruta es pública, permitir acceso
     if (publicRoutes.includes(to.path)) {
         // Si ya está autenticado y va a /auth, redirigir a su dashboard
@@ -136,12 +107,12 @@ router.beforeEach((to, from, next) => {
         }
         return next()
     }
-    
+
     // Si no está autenticado, redirigir a login
     if (!authStore.isAuthenticated) {
         return next('/auth')
     }
-    
+
     // Permitir acceso
     next()
 });

@@ -37,7 +37,7 @@ apiClient.interceptors.response.use(
 
     // 2. Error de Permisos (403)
     if (response?.status === 403) {
-      console.error('❌ Error 403: Sin permisos')
+      //console.error('❌ Error 403: Sin permisos')
       // oe urcia, aquí metele eso de llevar a la página de espera OwO
       return Promise.reject(new Error('No tiene permisos para esta acción.'))
     }
@@ -116,7 +116,7 @@ export const loginApi = async (correo, clave) => {
 
     if (status === 'success') {
       // --- CASO 1: Login de médico directo (1 especialidad) ---
-      console.log('🏥 Login personal médico (Caso 1) exitoso.')
+      //console.log('🏥 Login personal médico (Caso 1) exitoso.')
       return {
         status: 'success',
         // Usamos tu normalizador para obtener { access_token, user }
@@ -126,7 +126,7 @@ export const loginApi = async (correo, clave) => {
 
     if (status === 'requires_validation') {
       // --- CASO X: Requiere validación por parte del administrador
-      console.log('👨‍💼 Login personal médico (Caso X) requiere validación.')
+      //console.log('👨‍💼 Login personal médico (Caso X) requiere validación.')
       return {
         status: 'requires_validation',
         data: data
@@ -135,7 +135,7 @@ export const loginApi = async (correo, clave) => {
 
     if (status === 'requires_selection') {
       // --- CASO 2: Se requiere selección de especialidad ---
-      console.log('👨‍⚕️ Login personal médico (Caso 2) requiere selección.')
+      //console.log('👨‍⚕️ Login personal médico (Caso 2) requiere selección.')
       return {
         status: 'requires_selection',
         // data ya tiene la forma { message, specialties, temp_token }
@@ -148,7 +148,7 @@ export const loginApi = async (correo, clave) => {
     throw new Error('Respuesta de login inesperada.')
 
   } catch (medicoError) {
-    console.warn('⚠️ Login personal médico falló:', medicoError.message)
+    //console.warn('⚠️ Login personal médico falló:', medicoError.message)
 
     // 2. Comprobar si fue un error "No Encontrado"
     const isNotFoundError =
@@ -163,15 +163,15 @@ export const loginApi = async (correo, clave) => {
     }
 
     // 4. Si FUE "No Encontrado", intentamos como Administrador
-    console.log('👨‍💼 Fallback: Intentando login como administrador...')
+    //console.log('👨‍💼 Fallback: Intentando login como administrador...')
     try {
       const res = await apiClient.post('/administrador/login', {
         correo_electronico: correo,
         constrasena: clave,
       })
-      
+
       // --- CASO 3: Login de admin exitoso ---
-      console.log('👨‍💼 Login administrador exitoso.')
+      //console.log('👨‍💼 Login administrador exitoso.')
       // Envolvemos la respuesta para ser consistentes
       return {
         status: 'success',
@@ -187,8 +187,8 @@ export const loginApi = async (correo, clave) => {
 }
 
 export const selectSpecialtyApi = async (id_especialidad, temp_token) => {
-  console.log(`👨‍⚕️ Completando login con especialidad ID: ${id_especialidad}`)
-  
+  //console.log(`👨‍⚕️ Completando login con especialidad ID: ${id_especialidad}`)
+
   // Hacemos la petición al nuevo endpoint
   // MUY IMPORTANTE: Debemos pasar el temp_token en la cabecera
   // 'Authorization' para ESTA petición específica.

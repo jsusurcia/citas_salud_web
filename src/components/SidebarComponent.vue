@@ -27,7 +27,7 @@ defineProps({
             class="flex items-center p-2 text-gray-900 rounded-lg hover:bg-gray-100 group">
             <!-- Icono dinámico según el item -->
             <font-awesome-icon 
-              :icon="['fas', item.icon]" 
+              :icon="['fas', item.icon]"
               class="w-5 h-5 text-gray-500 transition duration-75 group-hover:text-gray-900" 
             />
             <span class="ms-3">{{ item.label }}</span>

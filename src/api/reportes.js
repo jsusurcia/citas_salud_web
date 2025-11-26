@@ -1,12 +1,12 @@
 import apiClient from './auth.js'
 
 /**
- * Obtiene el reporte de citas por especialidad desde la API.
+ * Obtiene el reporte de citas por especialidad desde la API. medina chambea
  */
 export const getReporteCitasPorEspecialidadApi = async (filtros) => {
   try {
-    console.log('🔍 Obteniendo reporte (especialidad) con filtros:', filtros)
-    
+    //console.log('🔍 Obteniendo reporte (especialidad) con filtros:', filtros)
+
     // axios convierte esto en:
     // /reportes/citas_por_especialidad?fecha_inicio=...&fecha_fin=...
     const res = await apiClient.get('/reportes/citas_por_especialidad', {
@@ -15,17 +15,17 @@ export const getReporteCitasPorEspecialidadApi = async (filtros) => {
         fecha_fin: filtros.fechaFin       // Traduce de JS a Python
       }
     })
-    
+
     const response = res.data
 
     // 1. Revisa si es formato ItemListResponse
     if (response.status === 'success' && Array.isArray(response.data)) {
-      console.log('✅ Reporte (especialidad) [ItemListResponse]:', response.data.length, 'registros')
+      //console.log('✅ Reporte (especialidad) [ItemListResponse]:', response.data.length, 'registros')
       return response.data
-    } 
+    }
     // 2. Revisa si es un array directo (el fallback)
     else if (Array.isArray(response)) {
-      console.log('⚠️ Reporte (especialidad) [Array Directo]:', response.length, 'registros')
+      //console.log('⚠️ Reporte (especialidad) [Array Directo]:', response.length, 'registros')
       return response
     }
     // 3. Si no es ninguno, es un error
@@ -46,25 +46,25 @@ export const getReporteCitasPorEspecialidadApi = async (filtros) => {
  */
 export const getReporteCitasDiariasApi = async (filtros) => {
   try {
-    console.log('🔍 Obteniendo reporte (diario) con filtros:', filtros)
-    
+    //console.log('🔍 Obteniendo reporte (diario) con filtros:', filtros)
+
     const res = await apiClient.get('/reportes/citas_diarias', {
       params: {
         fecha_inicio: filtros.fechaInicio,
         fecha_fin: filtros.fechaFin
       }
     })
-    
+
     const response = res.data
 
     // 1. Revisa si es formato ItemListResponse
     if (response.status === 'success' && Array.isArray(response.data)) {
-      console.log('✅ Reporte (diario) [ItemListResponse]:', response.data.length, 'registros')
+      //console.log('✅ Reporte (diario) [ItemListResponse]:', response.data.length, 'registros')
       return response.data
     }
     // 2. Revisa si es un array directo (el fallback)
     else if (Array.isArray(response)) {
-      console.log('⚠️ Reporte (diario) [Array Directo]:', response.length, 'registros')
+      //console.log('⚠️ Reporte (diario) [Array Directo]:', response.length, 'registros')
       return response
     }
     // 3. Si no es ninguno, es un error

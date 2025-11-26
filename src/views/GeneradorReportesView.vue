@@ -2,7 +2,7 @@
   <LayoutComponent>
     <div>
       <h1 class="text-3xl font-bold text-gray-800 mb-6">Generación de reportes</h1>
-      
+
       <FilterBarComponent @generar-reporte="handleGenerarReporte" />
 
       <!-- Mensaje de Error -->
@@ -14,7 +14,7 @@
       <div v-if="loading" class="flex justify-center items-center py-20">
         <LoaderComponent />
       </div>
-      
+
       <div v-else class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
         <div class="p-6 bg-white border border-gray-200 rounded-lg shadow">
           <h2 class="text-lg font-semibold text-gray-700 mb-4">Citas por especialidad</h2>
@@ -27,20 +27,10 @@
       </div>
 
       <div class="flex justify-end gap-4 mt-6">
-        <ButtonComponent 
-          variant="secondary" 
-          icon="file-pdf" 
-          label="Exportar PDF" 
-          @click="exportToPDF"
-          :disabled="loading || (barChartData.labels.length === 0 && lineChartData.labels.length === 0)"
-        />
-        <ButtonComponent 
-          variant="success" 
-          icon="file-excel" 
-          label="Exportar Excel"
-          @click="exportToExcel"
-          :disabled="loading || (barChartData.labels.length === 0 && lineChartData.labels.length === 0)"
-        />
+        <ButtonComponent variant="secondary" icon="file-pdf" label="Exportar PDF" @click="exportToPDF"
+          :disabled="loading || (barChartData.labels.length === 0 && lineChartData.labels.length === 0)" />
+        <ButtonComponent variant="success" icon="file-excel" label="Exportar Excel" @click="exportToExcel"
+          :disabled="loading || (barChartData.labels.length === 0 && lineChartData.labels.length === 0)" />
       </div>
     </div>
   </LayoutComponent>
@@ -53,7 +43,7 @@ import FilterBarComponent from '../components/FilterBarComponent.vue';
 import ChartComponent from '../components/ChartComponent.vue';
 import ButtonComponent from '../components/ButtonComponent.vue';
 import LoaderComponent from '../components/LoaderComponent.vue';
-import { 
+import {
   getReporteCitasPorEspecialidadApi,
   getReporteCitasDiariasApi
 } from '../api/reportes.js';
@@ -118,10 +108,10 @@ const formatDataForLineChart = (apiData) => {
 
 
 const handleGenerarReporte = async (filtros) => {
-  console.log("Generando ambos reportes con:", filtros);
+  //console.log("Generando ambos reportes con:", filtros);
   loading.value = true;
   errorMessage.value = '';
-  
+
   // Limpiamos los gráficos anteriores
   barChartData.value = { ...barChartData.value, labels: [], datasets: [{ ...barChartData.value.datasets[0], data: [] }] };
   lineChartData.value = { ...lineChartData.value, labels: [], datasets: [{ ...lineChartData.value.datasets[0], data: [] }] };
@@ -134,7 +124,7 @@ const handleGenerarReporte = async (filtros) => {
       getReporteCitasPorEspecialidadApi(filtros),
       getReporteCitasDiariasApi(filtros)
     ]);
-    
+
     // --- Actualiza el gráfico de barras ---
     const { labels: barLabels, data: barData } = formatDataForChart(dataEspecialidad);
     barChartData.value = {
@@ -150,7 +140,7 @@ const handleGenerarReporte = async (filtros) => {
       labels: lineLabels,
       datasets: [{ ...lineChartData.value.datasets[0], data: lineData }]
     };
-    
+
   } catch (error) {
     // Lógica de error mejorada
     console.error("Error al generar los reportes:", error);
@@ -170,14 +160,14 @@ const handleGenerarReporte = async (filtros) => {
 
 // --- FUNCIÓN PARA EXPORTAR A PDF (CORREGIDA) ---
 const exportToPDF = () => {
-  console.log("Exportando a PDF...");
+  //console.log("Exportando a PDF...");
   const doc = new jsPDF();
-  
+
   doc.text("Reporte de Citas", 14, 16);
-  
+
   // Tabla 1: Citas por Especialidad
   if (barChartData.value.labels.length > 0) {
-    autoTable(doc, { 
+    autoTable(doc, {
       startY: 30, // <-- CAMBIO AQUÍ: Más espacio para el título
       head: [['Especialidad', 'Total Citas']],
       body: barChartData.value.labels.map((label, index) => [
@@ -190,7 +180,7 @@ const exportToPDF = () => {
       }
     });
   } else {
-    autoTable(doc, { 
+    autoTable(doc, {
       startY: 30, // <-- CAMBIO AQUÍ: Más espacio para el título
       head: [['Citas por Especialidad']],
       body: [['No hay datos para mostrar']],
@@ -199,7 +189,7 @@ const exportToPDF = () => {
 
   // Tabla 2: Citas Diarias
   if (lineChartData.value.labels.length > 0) {
-    autoTable(doc, { 
+    autoTable(doc, {
       startY: doc.lastAutoTable.finalY + 15,
       head: [['Día', 'Total Citas']],
       body: lineChartData.value.labels.map((label, index) => [
@@ -212,26 +202,26 @@ const exportToPDF = () => {
       }
     });
   } else {
-    autoTable(doc, { 
+    autoTable(doc, {
       startY: doc.lastAutoTable.finalY + 15,
       head: [['Citas Diarias']],
       body: [['No hay datos para mostrar']],
     });
   }
-  
+
   doc.save('reporte_citas.pdf');
 }
 
 // --- FUNCIÓN PARA EXPORTAR A EXCEL ---
 const exportToExcel = () => {
-  console.log("Exportando a Excel...");
-  
+  //console.log("Exportando a Excel...");
+
   // 1. Preparar datos para la Hoja 1 (Especialidad)
   const dataEspecialidad = barChartData.value.labels.map((label, index) => ({
     Especialidad: label,
     'Total Citas': barChartData.value.datasets[0].data[index]
   }));
-  
+
   // 2. Preparar datos para la Hoja 2 (Diario)
   const dataDiaria = lineChartData.value.labels.map((label, index) => ({
     Dia: label,

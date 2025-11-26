@@ -16,8 +16,10 @@ const selectedEspecialidad = ref(null)
 const form = ref({
   nombre: '',
   descripcion: '',
-  duracionMinutos: 20,
-  precio: 0
+  duracionMinutos: 30,
+  precio: 0,
+  file: null,
+  previewUrl: null
 })
 const especialidades = ref([])
 const loading = ref(false)
@@ -33,11 +35,13 @@ const isAdmin = computed(() => {
 const loadEspecialidades = async () => {
   loading.value = true
   errorMessage.value = ''
-  
+
   try {
-    console.log('🔄 Cargando especialidades...')
+    //console.log('🔄 Cargando especialidades...')
     const data = await getEspecialidadesApi()
-    
+
+    //console.log('Data recibida:', data)
+
     // Mapear los datos del backend al formato esperado por el componente
     // IMPORTANTE: Mapeamos explícitamente el estado para mostrar tanto true como false
     especialidades.value = data.map(esp => ({
@@ -46,13 +50,14 @@ const loadEspecialidades = async () => {
       descripcion: esp.descripcion || '',
       duracionMinutos: Number(esp.duracion_minutos ?? esp.duracionMinutos ?? 0),
       precio: Number(esp.precio ?? 0),
-      habilitada: esp.estado === true // Mapeo explícito: true si estado es true, false si es false o null/undefined
+      habilitada: esp.estado === true, // Mapeo explícito: true si estado es true, false si es false o null/undefined
+      icono_url: esp.icono_url || null // Asumiendo que el backend devuelve la URL del icono
     }))
-    
-    console.log('✅ Especialidades cargadas:', especialidades.value.length)
+
+    //console.log('✅ Especialidades cargadas:', especialidades.value.length)
   } catch (error) {
     console.error('❌ Error al cargar especialidades:', error)
-    
+
     // Mostrar mensaje de error
     if (error.detail) {
       errorMessage.value = error.detail
@@ -83,8 +88,10 @@ const openAddModal = () => {
   form.value = {
     nombre: '',
     descripcion: '',
-    duracionMinutos: 20,
-    precio: 0
+    duracionMinutos: 30,
+    precio: 0,
+    file: null,
+    previewUrl: null
   } // Reseteamos el formulario
   errorMessage.value = '' // Limpiar errores previos
   activeModal.value = 'add'
@@ -103,66 +110,62 @@ const handleCreate = async () => {
     return
   }
 
+  if (!Number.isFinite(duracion) || duracion > 120) {
+    errorMessage.value = 'La duración debe ser menor a 120 minutos'
+    return
+  }
+
   const precio = Number(form.value.precio)
   if (!Number.isFinite(precio) || precio < 0) {
     errorMessage.value = 'El precio no puede ser negativo'
     return
   }
-  
+
   // Verificar que el usuario tenga permisos de admin
   const user = authStore.user
   if (!user || user.rol !== 'admin') {
     errorMessage.value = 'Solo los administradores pueden crear especialidades'
     return
   }
-  
+
   creating.value = true
   errorMessage.value = ''
-  
+
   try {
-    console.log('➕ Creando especialidad...', form.value)
-    console.log('👤 Usuario actual:', user)
-    
+    //console.log('➕ Creando especialidad...', form.value)
+    //console.log('👤 Usuario actual:', user)
+
     // Preparar los datos según el formato esperado por el backend
     const especialidadData = {
       nombre: form.value.nombre.trim(),
       descripcion: form.value.descripcion?.trim() || '',
       duracion_minutos: Math.round(duracion),
-      precio: Number(precio.toFixed(2))
+      precio: Number(precio.toFixed(2)),
+      file: form.value.file
     }
-    
+
     // Llamar a la API del backend
     const nuevaEspecialidad = await createEspecialidadApi(especialidadData)
-    
-    console.log('✅ Especialidad creada:', nuevaEspecialidad)
-    
-    // Mapear la respuesta del backend al formato esperado
-    const especialidadMapeada = {
-      id: nuevaEspecialidad.id_especialidad || nuevaEspecialidad.id,
-      nombre: nuevaEspecialidad.nombre,
-      descripcion: nuevaEspecialidad.descripcion || '',
-      duracionMinutos: Number(nuevaEspecialidad.duracion_minutos ?? nuevaEspecialidad.duracionMinutos ?? 0),
-      precio: Number(nuevaEspecialidad.precio ?? 0),
-      habilitada: nuevaEspecialidad.estado === true // Mapeo explícito para mostrar estado correcto
-    }
-    
+
+    //console.log('✅ Especialidad creada:', nuevaEspecialidad)
+
     // Cerrar el modal
     closeModal()
-    
+
     // Limpiar mensajes de error
     errorMessage.value = ''
-    
+
     // Recargar todas las especialidades para asegurar consistencia con el backend
     await loadEspecialidades()
-    
-    console.log('✅ Especialidad creada exitosamente')
-    
+
+    //console.log('✅ Especialidad creada exitosamente')
+
   } catch (error) {
     console.error('❌ Error al crear especialidad:', error)
-    
+
     // Mostrar mensaje de error más específico
     let errorMsg = 'Error al crear la especialidad'
-    
+
     if (error.response?.status === 403) {
       errorMsg = 'No tienes permisos para crear especialidades. Solo los administradores pueden realizar esta acción.'
     } else if (error.detail) {
@@ -170,7 +173,7 @@ const handleCreate = async () => {
     } else if (error.message) {
       errorMsg = error.message
     }
-    
+
     errorMessage.value = errorMsg
   } finally {
     creating.value = false
@@ -184,17 +187,19 @@ const openEditModal = (especialidad) => {
     nombre: especialidad.nombre,
     descripcion: especialidad.descripcion,
     duracionMinutos: Number(especialidad.duracionMinutos ?? 0),
-    precio: Number(especialidad.precio ?? 0)
+    precio: Number(especialidad.precio ?? 0),
+    file: null,
+    previewUrl: especialidad.icono_url || null
   } // Copiamos los datos al formulario
   activeModal.value = 'edit'
 };
 
 // Guardar edición
 const handleEdit = async () => {
-  
-  if(!selectedEspecialidad.value) return
 
-  if(!form.value.nombre.trim()){
+  if (!selectedEspecialidad.value) return
+
+  if (!form.value.nombre.trim()) {
     errorMessage.value = 'El nombre es requerido'
     return
   }
@@ -213,7 +218,7 @@ const handleEdit = async () => {
 
   //Verificar que el usuario tenga permisos de admin
   const user = authStore.user
-  if(!user || user.rol !== 'admin'){
+  if (!user || user.rol !== 'admin') {
     errorMessage.value = 'Solo los administradores pueden editar especialidades'
     return
   }
@@ -221,49 +226,69 @@ const handleEdit = async () => {
   creating.value = true
   errorMessage.value = ''
 
-  try{
-    console.log('✅ Actualizando especialidad...', { especialidadId: selectedEspecialidad.value.id, especialidadData: form.value })
-    console.log('👤 Usuario actual:', user)
+  try {
+    // 1. CREAMOS UN OBJETO SOLO CON LO QUE CAMBIÓ
+    const datosCambiados = {}
+    const original = selectedEspecialidad.value
+    const actual = form.value
 
-    //Preparar los datos según el formato esperado por el backend
-    const especialidadData = {
-      nombre: form.value.nombre.trim(),
-      descripcion: form.value.descripcion?.trim() || '',
-      duracion_minutos: Math.round(duracion),
-      precio: Number(precio.toFixed(2))
+    //console.log('Original:', original)
+    //console.log('Actual:', actual)
+
+    // Comparamos Nombre
+    if (actual.nombre.trim() !== original.nombre) {
+      datosCambiados.nombre = actual.nombre.trim()
     }
 
-    //Llamar a la API del backend
-    const especialidadActualizada = await updateEspecialidadApi(selectedEspecialidad.value.id, especialidadData)
-
-    console.log('✅ Especialidad actualizada:', especialidadActualizada)
-
-    //Mapear la respuesta del backend al formato esperado
-    const especialidadMapeada = {
-      id: especialidadActualizada.id_especialidad || especialidadActualizada.id,
-      nombre: especialidadActualizada.nombre,
-      descripcion: especialidadActualizada.descripcion || '',
-      duracionMinutos: Number(especialidadActualizada.duracion_minutos ?? especialidadActualizada.duracionMinutos ?? 0),
-      precio: Number(especialidadActualizada.precio ?? 0),
-      habilitada: especialidadActualizada.estado === true // Mapeo explícito para mostrar estado correcto
+    // Comparamos Descripción
+    // Manejo seguro de nulos para evitar error de comparación
+    const descActual = actual.descripcion?.trim() || ''
+    const descOriginal = original.descripcion?.trim() || ''
+    if (descActual !== descOriginal) {
+      datosCambiados.descripcion = descActual
     }
 
-    //Cerrar el modal
+    // Comparamos Duración
+    if (Math.round(Number(actual.duracionMinutos)) !== original.duracionMinutos) {
+      datosCambiados.duracion_minutos = Math.round(Number(actual.duracionMinutos))
+    }
+
+    // Comparamos Precio
+    // Usamos toFixed para comparar valores monetarios correctamente
+    if (Number(actual.precio).toFixed(2) !== Number(original.precio).toFixed(2)) {
+      datosCambiados.precio = Number(Number(actual.precio).toFixed(2))
+    }
+
+    // Comparamos Archivo (Siempre se envía si existe, ya que es binario nuevo)
+    if (actual.file) {
+      datosCambiados.file = actual.file
+    }
+
+    // 2. VERIFICAR SI HAY ALGO QUE GUARDAR
+    if (Object.keys(datosCambiados).length === 0) {
+      //console.log('ℹ️ No se detectaron cambios, cerrando modal.')
+      closeModal()
+      creating.value = false
+      return
+    }
+
+    //console.log('📝 Enviando solo cambios:', datosCambiados)
+
+    // 3. ENVIAR SOLO LO MODIFICADO
+    // Tu función updateEspecialidadApi ya usa toFormData, así que esto funcionará perfecto
+    const especialidadActualizada = await updateEspecialidadApi(original.id, datosCambiados)
+
+    //console.log('✅ Especialidad actualizada:', especialidadActualizada)
     closeModal()
-
-    //Limpiar mensajes de error
     errorMessage.value = ''
-
-    //Recargar todas las especialidades para asegurar consistencia con el backend
     await loadEspecialidades()
 
-    console.log('✅ Especialidad actualizada exitosamente')
   } catch (error) {
     console.error('❌ Error al actualizar especialidad:', error)
-    
+
     //Mostrar mensaje de error más específico
     let errorMsg = 'Error al actualizar la especialidad'
-    
+
     if (error.response?.status === 404) {
       errorMsg = 'Especialidad no encontrada'
     } else if (error.response?.status === 403) {
@@ -291,7 +316,7 @@ const openConfirmModal = (especialidad) => {
 // Cambiar estado de especialidad (habilitar/deshabilitar)
 const handleToggleStatus = async () => {
   if (!selectedEspecialidad.value) return
-  
+
   // Verificar que el usuario tenga permisos de admin
   const user = authStore.user
   if (!user || user.rol !== 'admin') {
@@ -299,60 +324,61 @@ const handleToggleStatus = async () => {
     closeModal()
     return
   }
-  
+
   creating.value = true
   errorMessage.value = ''
-  
+
   try {
     const especialidadId = selectedEspecialidad.value.id
     const nuevoEstado = !selectedEspecialidad.value.habilitada // Invertir el estado actual
+
     
-    console.log('🔄 Cambiando estado de especialidad...', { 
-      especialidadId, 
+    console.log('🔄 Cambiando estado de especialidad...', {
+    especialidadId,
       estadoActual: selectedEspecialidad.value.habilitada,
-      nuevoEstado 
-    })
-    
-    // Llamar a la API del backend
-    // El backend espera PATCH /especialidades/{id}/estado con { estado: boolean }
-    const especialidadActualizada = await updateEstadoEspecialidadApi(
-      especialidadId,
-      nuevoEstado
-    )
-    
-    console.log('✅ Estado actualizado:', especialidadActualizada)
-    
-    // Cerrar el modal
-    closeModal()
-    
-    // Limpiar mensajes de error
-    errorMessage.value = ''
-    
-    // Recargar todas las especialidades para asegurar consistencia con el backend
-    await loadEspecialidades()
-    
-    console.log('✅ Estado de especialidad cambiado exitosamente')
-    
-  } catch (error) {
-    console.error('❌ Error al cambiar estado de especialidad:', error)
-    
-    // Mostrar mensaje de error más específico
-    let errorMsg = 'Error al cambiar el estado de la especialidad'
-    
-    if (error.response?.status === 404) {
-      errorMsg = 'Especialidad no encontrada'
-    } else if (error.response?.status === 403) {
-      errorMsg = 'No tienes permisos para cambiar el estado. Solo los administradores pueden realizar esta acción.'
-    } else if (error.detail) {
-      errorMsg = error.detail
-    } else if (error.message) {
-      errorMsg = error.message
-    }
-    
-    errorMessage.value = errorMsg
-  } finally {
-    creating.value = false
+        nuevoEstado
+  })
+
+  // Llamar a la API del backend
+  // El backend espera PATCH /especialidades/{id}/estado con { estado: boolean }
+  const especialidadActualizada = await updateEstadoEspecialidadApi(
+    especialidadId,
+    nuevoEstado
+  )
+
+  //console.log('✅ Estado actualizado:', especialidadActualizada)
+
+  // Cerrar el modal
+  closeModal()
+
+  // Limpiar mensajes de error
+  errorMessage.value = ''
+
+  // Recargar todas las especialidades para asegurar consistencia con el backend
+  await loadEspecialidades()
+
+  //console.log('✅ Estado de especialidad cambiado exitosamente')
+
+} catch (error) {
+  console.error('❌ Error al cambiar estado de especialidad:', error)
+
+  // Mostrar mensaje de error más específico
+  let errorMsg = 'Error al cambiar el estado de la especialidad'
+
+  if (error.response?.status === 404) {
+    errorMsg = 'Especialidad no encontrada'
+  } else if (error.response?.status === 403) {
+    errorMsg = 'No tienes permisos para cambiar el estado. Solo los administradores pueden realizar esta acción.'
+  } else if (error.detail) {
+    errorMsg = error.detail
+  } else if (error.message) {
+    errorMsg = error.message
   }
+
+  errorMessage.value = errorMsg
+} finally {
+  creating.value = false
+}
 }
 
 // Abrir modal de eliminar
@@ -378,14 +404,14 @@ const handleDelete = async () => {
 
   try {
     const especialidadId = selectedEspecialidad.value.id
-    console.log('🗑️ Eliminando especialidad...', { especialidadId })
+    //console.log('🗑️ Eliminando especialidad...', { especialidadId })
     await deleteEspecialidadApi(especialidadId)
 
     // Si llegamos aquí, la eliminación fue exitosa
     closeModal()
     errorMessage.value = '' // Limpiar errores previos
     await loadEspecialidades()
-    console.log('✅ Especialidad eliminada exitosamente')
+    //console.log('✅ Especialidad eliminada exitosamente')
   } catch (error) {
     console.error('❌ Error al eliminar especialidad:', error)
 
@@ -407,7 +433,7 @@ const handleDelete = async () => {
     }
 
     errorMessage.value = errorMsg
-    
+
     // No cerrar el modal si hay un error 400 (tiene relaciones)
     // para que el usuario vea el mensaje detallado del backend
     if (error.response?.status === 400) {
@@ -420,20 +446,30 @@ const handleDelete = async () => {
     creating.value = false
   }
 }
+
+// Manejar selección de archivo
+const handleFileChange = (event) => {
+  const file = event.target.files[0]
+  if (file) {
+    form.value.file = file
+    // Crear URL para previsualización
+    form.value.previewUrl = URL.createObjectURL(file)
+  }
+}
+
+// Trigger para el input file oculto
+const fileInputRef = ref(null)
+const triggerFileInput = () => {
+  fileInputRef.value.click()
+}
 </script>
 
 <template>
   <LayoutComponent>
     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
       <h1 class="text-2xl font-bold text-gray-700">Gestionar especialidades</h1>
-      <ButtonComponent 
-        v-if="isAdmin"
-        type="button" 
-        variant="primary" 
-        size="large" 
-        icon="fa-solid fa-plus" 
-        label="Añadir especialidad"
-        @click="openAddModal" />
+      <ButtonComponent v-if="isAdmin" type="button" variant="primary" size="large" icon="fa-solid fa-plus"
+        label="Añadir especialidad" @click="openAddModal" />
     </div>
 
     <!-- Mensaje de error -->
@@ -448,19 +484,12 @@ const handleDelete = async () => {
 
     <!-- Lista de especialidades -->
     <div v-else-if="especialidades.length > 0" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-      <EspecialidadCardComponent 
-        v-for="especialidad in especialidades" 
-        :key="especialidad.id"
-        :title="especialidad.nombre" 
-        :description="especialidad.descripcion" 
-        :duration-minutes="especialidad.duracionMinutos"
-        :price="especialidad.precio"
-        :is-enabled="especialidad.habilitada"
-        @edit="openEditModal(especialidad)" 
-        @disable="openConfirmModal(especialidad)" 
-        @enable="openConfirmModal(especialidad)"
-        @delete="openDeleteModal(especialidad)" 
-      />
+      <EspecialidadCardComponent v-for="especialidad in especialidades" :key="especialidad.id"
+        :title="especialidad.nombre" :description="especialidad.descripcion"
+        :duration-minutes="especialidad.duracionMinutos" :price="especialidad.precio"
+        :is-enabled="especialidad.habilitada" :icon-url="especialidad.icono_url" @edit="openEditModal(especialidad)"
+        @disable="openConfirmModal(especialidad)" @enable="openConfirmModal(especialidad)"
+        @delete="openDeleteModal(especialidad)" />
     </div>
 
     <!-- Mensaje cuando no hay especialidades -->
@@ -468,87 +497,125 @@ const handleDelete = async () => {
       <p>No hay especialidades disponibles</p>
     </div>
 
-    <ModalForm 
-      title="Nueva especialidad" 
-      :isOpen="activeModal === 'add'" 
-      @close="closeModal"
-      @submit="handleCreate"
+    <ModalForm title="Nueva especialidad" :isOpen="activeModal === 'add'" @close="closeModal" @submit="handleCreate"
       :isLoading="creating">
       <div>
         <label for="nombre" class="block mb-2 text-sm font-medium text-gray-900">Nombre</label>
-        <input id="nombre" v-model="form.nombre" type="text" placeholder="Ingresa el nombre de la especialidad" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-green-500 focus:border-green-500 block w-full p-2.5" required />
+        <input id="nombre" v-model="form.nombre" type="text" placeholder="Ingresa el nombre de la especialidad"
+          class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-green-500 focus:border-green-500 block w-full p-2.5"
+          required />
       </div>
       <div>
         <label for="descripcion" class="block mb-2 text-sm font-medium text-gray-900">Descripción</label>
-        <textarea id="descripcion" v-model="form.descripcion" rows="3" placeholder="Resumen de las funciones..." class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-green-500 focus:border-green-500 block w-full p-2.5"></textarea>
+        <textarea id="descripcion" v-model="form.descripcion" rows="3" placeholder="Resumen de las funciones..."
+          class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-green-500 focus:border-green-500 block w-full p-2.5"></textarea>
       </div>
       <div>
         <label for="duracion" class="block mb-2 text-sm font-medium text-gray-900">Duración (minutos)</label>
-        <input id="duracion" v-model.number="form.duracionMinutos" type="number" min="1" placeholder="Ingrese la duración" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-green-500 focus:border-green-500 block w-full p-2.5" required />
+        <input id="duracion" v-model.number="form.duracionMinutos" type="number" min="1"
+          placeholder="Ingrese la duración"
+          class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-green-500 focus:border-green-500 block w-full p-2.5"
+          required />
       </div>
       <div>
         <label for="precio" class="block mb-2 text-sm font-medium text-gray-900">Precio (S/)</label>
-        <input id="precio" v-model.number="form.precio" type="number" min="0" step="0.1" placeholder="Ingrese el precio" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-green-500 focus:border-green-500 block w-full p-2.5" required />
+        <input id="precio" v-model.number="form.precio" type="number" min="0" step="0.1" placeholder="Ingrese el precio"
+          class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-green-500 focus:border-green-500 block w-full p-2.5"
+          required />
       </div>
-      <div v-if="activeModal === 'add' && errorMessage" class="p-3 bg-red-100 border border-red-300 text-red-700 rounded-md text-sm">
+
+      <!-- Input de Imagen -->
+      <div>
+        <label class="block mb-2 text-sm font-medium text-gray-900">Icono de la especialidad</label>
+        <div class="flex items-center gap-4">
+          <div v-if="form.previewUrl" class="relative w-16 h-16 rounded-lg overflow-hidden border border-gray-200">
+            <img :src="form.previewUrl" alt="Previsualización" class="w-full h-full object-cover" />
+          </div>
+          <div v-else
+            class="w-16 h-16 rounded-lg bg-gray-100 flex items-center justify-center border border-gray-200 text-gray-400">
+            <i class="fa-solid fa-image text-xl"></i>
+          </div>
+
+          <input type="file" ref="fileInputRef" class="hidden" accept="image/*" @change="handleFileChange" />
+
+          <ButtonComponent type="button" variant="secondary" size="small" icon="fa-solid fa-upload"
+            label="Seleccionar imagen" @click="triggerFileInput" />
+        </div>
+        <p class="mt-1 text-xs text-gray-500">Formatos permitidos: JPG, PNG, WEBP. Máx 2MB.</p>
+      </div>
+
+      <div v-if="activeModal === 'add' && errorMessage"
+        class="p-3 bg-red-100 border border-red-300 text-red-700 rounded-md text-sm">
         {{ errorMessage }}
       </div>
     </ModalForm>
 
-    <ModalForm 
-      title="Editar especialidad" 
-      :isOpen="activeModal === 'edit'" 
-      @close="closeModal"
-      @submit="handleEdit"
+    <ModalForm title="Editar especialidad" :isOpen="activeModal === 'edit'" @close="closeModal" @submit="handleEdit"
       :isLoading="creating">
       <div>
         <label for="edit-nombre" class="block mb-2 text-sm font-medium text-gray-900">Nombre</label>
-        <input id="edit-nombre" v-model="form.nombre" type="text" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-green-500 focus:border-green-500 block w-full p-2.5" required />
+        <input id="edit-nombre" v-model="form.nombre" type="text"
+          class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-green-500 focus:border-green-500 block w-full p-2.5"
+          required />
       </div>
       <div>
         <label for="edit-descripcion" class="block mb-2 text-sm font-medium text-gray-900">Descripción</label>
-        <textarea id="edit-descripcion" v-model="form.descripcion" rows="3" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-green-500 focus:border-green-500 block w-full p-2.5"></textarea>
+        <textarea id="edit-descripcion" v-model="form.descripcion" rows="3"
+          class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-green-500 focus:border-green-500 block w-full p-2.5"></textarea>
       </div>
       <div>
         <label for="edit-duracion" class="block mb-2 text-sm font-medium text-gray-900">Duración (minutos)</label>
-        <input id="edit-duracion" v-model.number="form.duracionMinutos" type="number" min="1" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-green-500 focus:border-green-500 block w-full p-2.5" required />
+        <input id="edit-duracion" v-model.number="form.duracionMinutos" type="number" min="1"
+          class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-green-500 focus:border-green-500 block w-full p-2.5"
+          required />
       </div>
       <div>
         <label for="edit-precio" class="block mb-2 text-sm font-medium text-gray-900">Precio (S/)</label>
-        <input id="edit-precio" v-model.number="form.precio" type="number" min="0" step="0.1" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-green-500 focus:border-green-500 block w-full p-2.5" required />
+        <input id="edit-precio" v-model.number="form.precio" type="number" min="0" step="0.1"
+          class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-green-500 focus:border-green-500 block w-full p-2.5"
+          required />
       </div>
-      <div v-if="activeModal === 'edit' && errorMessage" class="p-3 bg-red-100 border border-red-300 text-red-700 rounded-md text-sm">
+
+      <!-- Input de Imagen para Editar -->
+      <div>
+        <label class="block mb-2 text-sm font-medium text-gray-900">Icono de la especialidad</label>
+        <div class="flex items-center gap-4">
+          <div v-if="form.previewUrl" class="relative w-16 h-16 rounded-lg overflow-hidden border border-gray-200">
+            <img :src="form.previewUrl" alt="Previsualización" class="w-full h-full object-cover" />
+          </div>
+          <div v-else
+            class="w-16 h-16 rounded-lg bg-gray-100 flex items-center justify-center border border-gray-200 text-gray-400">
+            <i class="fa-solid fa-image text-xl"></i>
+          </div>
+
+          <input type="file" ref="fileInputRef" class="hidden" accept="image/*" @change="handleFileChange" />
+
+          <ButtonComponent type="button" variant="secondary" size="small" icon="fa-solid fa-upload"
+            label="Cambiar imagen" @click="triggerFileInput" />
+        </div>
+        <p class="mt-1 text-xs text-gray-500">Deja esto vacío si no quieres cambiar la imagen actual.</p>
+      </div>
+
+      <div v-if="activeModal === 'edit' && errorMessage"
+        class="p-3 bg-red-100 border border-red-300 text-red-700 rounded-md text-sm">
         {{ errorMessage }}
       </div>
     </ModalForm>
 
-    <ConfirmModalComponent 
-      :isOpen="activeModal === 'disableConfirm'" 
-      type="danger"
-      title="¿Deshabilitar esta especialidad?" 
+    <ConfirmModalComponent :isOpen="activeModal === 'disableConfirm'" type="danger"
+      title="¿Deshabilitar esta especialidad?"
       description="La especialidad dejará de estar disponible para asignaciones. Podrás volver a habilitarla más adelante."
-      confirmLabel="Sí, deshabilitar"
-      @confirm="handleToggleStatus" 
-      @close="closeModal" />
+      confirmLabel="Sí, deshabilitar" @confirm="handleToggleStatus" @close="closeModal" />
 
-    <ConfirmModalComponent 
-      :isOpen="activeModal === 'enableConfirm'" 
-      type="success"
-      title="¿Habilitar esta especialidad?" 
+    <ConfirmModalComponent :isOpen="activeModal === 'enableConfirm'" type="success"
+      title="¿Habilitar esta especialidad?"
       description="La especialidad volverá a estar disponible para asignaciones y uso activo en el sistema."
-      confirmLabel="Sí, habilitar"
-      @confirm="handleToggleStatus" 
-      @close="closeModal" />
+      confirmLabel="Sí, habilitar" @confirm="handleToggleStatus" @close="closeModal" />
 
-    <ConfirmModalComponent 
-      :isOpen="activeModal === 'deleteConfirm'" 
-      type="danger"
-      title="¿Eliminar esta especialidad?" 
+    <ConfirmModalComponent :isOpen="activeModal === 'deleteConfirm'" type="danger" title="¿Eliminar esta especialidad?"
       description="Esta acción eliminará la especialidad de forma permanente. No podrás recuperarla luego."
-      confirmLabel="Sí, eliminar"
-      :errorMessage="activeModal === 'deleteConfirm' ? errorMessage : ''"
-      @confirm="handleDelete" 
-      @close="closeModal" />
+      confirmLabel="Sí, eliminar" :errorMessage="activeModal === 'deleteConfirm' ? errorMessage : ''"
+      @confirm="handleDelete" @close="closeModal" />
 
   </LayoutComponent>
 </template>

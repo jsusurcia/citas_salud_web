@@ -5,7 +5,7 @@ import { getAnalytics } from "firebase/analytics";
 // https://firebase.google.com/docs/web/setup#available-libraries
 
 
-const CHISMOSO = import.meta.env.VITE_CHISMOSO_ERES_NO
+const CHISMOSO_ERES_NO = import.meta.env.VITE_CHISMOSO_ERES_NO
 const API_AUTH_DOMAIN = import.meta.env.VITE_AUTH_DOMAIN
 const API_PROJECT_ID = import.meta.env.VITE_PROJECT_ID
 const API_STORAGE_BUCKET = import.meta.env.VITE_STORAGE_BUCKET
@@ -16,7 +16,7 @@ const API_MEASUREMENT_ID = import.meta.env.VITE_MEASUREMENT_ID
 // Your web app's Firebase configuration
 // For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
-  apiKey: CHISMOSO,
+  apiKey: CHISMOSO_ERES_NO,
   authDomain: API_AUTH_DOMAIN,
   projectId: API_PROJECT_ID,
   storageBucket: API_STORAGE_BUCKET,
@@ -28,3 +28,6 @@ const firebaseConfig = {
 // Initialize Firebase
 export const firebaseApp = initializeApp(firebaseConfig);
 export const analytics = getAnalytics(firebaseApp);
+
+import { getMessaging } from "firebase/messaging";
+export const messaging = getMessaging(firebaseApp);

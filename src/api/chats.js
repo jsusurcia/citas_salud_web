@@ -19,7 +19,7 @@ apiClient.interceptors.request.use(
   (config) => {
     const authStore = useAuthStore();
     const token = authStore.token;
-    
+
     if (token) {
       // Adjuntamos el token como "Bearer Token"
       config.headers.Authorization = `Bearer ${token}`;
@@ -70,8 +70,10 @@ export const createOrGetChat = async (recipientId) => {
  */
 export const getChatList = async () => {
   try {
-    const response = await apiClient.get('/chats');
+    const response = await apiClient.get('/chats/personal');
     // [{chat_id: str, participants: [], created_at: str}, ...]
+    //console.log(`🚀 listado de chats`, response.data)
+
     return response.data;
   } catch (error) {
     console.error('Error al obtener la lista de chats:', error.response?.data || error.message);
@@ -85,8 +87,9 @@ export const getChatList = async () => {
  */
 export const getChatHistory = async (chatId) => {
   try {
-    const response = await apiClient.get(`/chats/${chatId}/messages/`);
+    const response = await apiClient.get(`/chats/personal/${chatId}/messages`);
     // [{id: str, chat_id: str, sender_id: str, text: str, timestamp: str}, ...]
+    //console.log(`🚀 historial de chat`, response.data)
     return response.data;
   } catch (error) {
     console.error('Error al obtener el historial del chat:', error.response?.data || error.message);

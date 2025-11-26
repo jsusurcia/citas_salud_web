@@ -68,7 +68,7 @@ export const useChatStore = defineStore('chat', {
 
       const wsURL = `${baseURL}?token=${token}`;
 
-      console.log('Chat: Conectando a', wsURL);
+      //console.log('Chat: Conectando a', wsURL);
       this.socket = new WebSocket(wsURL);
 
       this.setupSocketListeners();
@@ -111,7 +111,7 @@ export const useChatStore = defineStore('chat', {
         this.socket = null;
 
         if (event.code !== 1000 && !this.reconnectTimer) {
-          console.log('Chat: Intentando reconectar en 5 segundos...');
+          //console.log('Chat: Intentando reconectar en 5 segundos...');
           this.reconnectTimer = setTimeout(() => {
             this.connect();
           }, 5000);
@@ -215,10 +215,14 @@ export const useChatStore = defineStore('chat', {
       }
 
       const payload = {
+        type: "text",
         text: messageText,
         chat_id: this.activeChatId,
         recipient_ids: recipientIds
       };
+
+
+      //console.log(`Enviando el payload: ${payload}`);
 
       //console.log("Chat: Enviando mensaje:", payload);
       this.socket.send(JSON.stringify(payload));

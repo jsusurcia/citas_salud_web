@@ -48,10 +48,10 @@ const closeLogoutModal = () => {
 
 // Función para confirmar y cerrar sesión
 const confirmLogout = () => {
-    console.log('🚪 Cerrando sesión...')
+    //console.log('🚪 Cerrando sesión...')
     authStore.logout()
     router.push('/auth')
-    console.log('✅ Sesión cerrada')
+    //console.log('✅ Sesión cerrada')
     showLogoutModal.value = false
 }
 </script>
