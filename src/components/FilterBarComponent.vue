@@ -2,11 +2,29 @@
 import { ref } from 'vue';
 
 // Define los datos de los filtros de forma reactiva
+// const filtros = ref({
+//   fechaInicio: '2025-01-01',
+//   fechaFin: '2025-01-31',
+//   tipoReporte: 'resumen_citas'
+// });
+
+//Obtener la fecha actual YYYY-MM-DD
+const getToday = () =>{
+  return new Date().toISOString().split('T')[0];
+}
+
+//Obtener el priemro de enero del año actual YYYY-MM-DD
+const getStartOfYear = () =>{
+  const currentYear = new Date().getFullYear();
+  return `${currentYear}-01-01`;
+}
+
+//Inicializamos con fechas dinámicas
 const filtros = ref({
-  fechaInicio: '2024-01-01',
-  fechaFin: '2024-01-31',
+  fechaInicio: getStartOfYear(),
+  fechaFin: getToday(),
   tipoReporte: 'resumen_citas'
-});
+})
 
 // Define un 'emit' para comunicarnos con el componente padre
 const emit = defineEmits(['generar-reporte']);
@@ -28,7 +46,11 @@ const handleGenerarReporte = () => {
       <label for="fecha-fin" class="ml-4 text-sm font-medium text-gray-700">Hasta:</label>
       <input type="date" id="fecha-fin" v-model="filtros.fechaFin" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5">
     </div>
-
+    
+    <div class="flex-grow flex justify-end px-4">
+        <slot name="filtros-extra"></slot>
+    </div>
+    
     <button @click="handleGenerarReporte" class="px-5 py-2.5 text-sm font-medium text-white bg-cyan-600 rounded-lg hover:bg-cyan-700 focus:ring-4 focus:outline-none focus:ring-cyan-300">
       Generar informe
     </button>
