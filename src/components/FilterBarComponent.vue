@@ -46,8 +46,7 @@ const handleGenerarReporte = () => {
       <label for="fecha-fin" class="ml-4 text-sm font-medium text-gray-700">Hasta:</label>
       <input type="date" id="fecha-fin" v-model="filtros.fechaFin" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5">
     </div>
-    
-    <div class="flex-grow flex justify-end px-4">
+    <div class="flex-grow items-center gap-3 flex justify-end px-4">
         <slot name="filtros-extra"></slot>
     </div>
     
