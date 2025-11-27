@@ -114,16 +114,16 @@ const loadCitas = async () => {
         citasPendientes.value = dataPendientes;
         citaEnAtencion.value = dataEnAtencion;
 
-        //console.log('✅ Citas cargadas para el calendario:', citas.value.length)
-        //console.log('✅ Citas pendientes cargadas:', citasPendientes.value.length)
+        //console.log('Citas cargadas para el calendario:', citas.value.length)
+        //console.log('Citas pendientes cargadas:', citasPendientes.value.length)
 
         if (citaEnAtencion.value) {
-            //console.log('✅ Cita en atención cargada:', citaEnAtencion.value)
+            //console.log('Cita en atención cargada:', citaEnAtencion.value)
         } else {
-            //console.log('⚠️ No hay cita en atención')
+            //console.log('No hay cita en atención')
         }
     } catch (error) {
-        console.error('❌ Error al cargar citas:', error)
+        console.error('Error al cargar citas:', error)
         errorMessage.value = error.detail || error.message || 'Error al cargar las citas'
     } finally {
         loading.value = false
@@ -190,6 +190,10 @@ const getNombrePaciente = (cita) => {
 }
 
 const getTipoAtencionLabel = (cita) => {
+    const direccion = cita.direccion_domicilio || cita.direccion_cita;
+    if (direccion){
+        return `Dirección: ${direccion}`;
+    }
     return cita.direccion_domicilio ? 'Visita domiciliaria' : 'En consultorio'
 }
 
